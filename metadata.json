@@ -1,0 +1,6 @@
+{
+  "name": "ProfPilot - Gestion de Classes & Élèves",
+  "description": "Application web complète pour enseignants : gestion de classes, élèves, saisie des notes, moyennes automatiques, appel et présences, et génération de bulletins scolaires.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

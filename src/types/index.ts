@@ -1,0 +1,163 @@
+export interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+  school: string;
+  subject: string;
+  avatarUrl?: string;
+}
+
+export type ClassLevel = 
+  | '6ème'
+  | '5ème'
+  | '4ème'
+  | '3ème'
+  | 'Seconde'
+  | 'Première'
+  | 'Terminale'
+  | 'BTS / Supérieur'
+  | 'Primaire / Autre';
+
+export interface Classroom {
+  id: string;
+  name: string;
+  level: ClassLevel;
+  subject: string;
+  academicYear: string;
+  room?: string;
+  color: string;
+  description?: string;
+}
+
+export interface Student {
+  id: string;
+  classId: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  gender: 'M' | 'F' | 'Autre';
+  avatarUrl?: string;
+  studentEmail?: string;
+  parentPhone: string;
+  parentEmail?: string;
+  address?: string;
+  observations?: string;
+  createdAt: string;
+}
+
+export type AssessmentType = 'DS' | 'Contrôle' | 'DM' | 'Interrogation' | 'TP' | 'Oral' | 'Projet';
+
+export interface Assessment {
+  id: string;
+  classId: string;
+  subject: string;
+  title: string;
+  date: string;
+  coefficient: number;
+  maxScore: number; // default 20
+  type: AssessmentType;
+  description?: string;
+}
+
+export interface Grade {
+  id: string;
+  assessmentId: string;
+  studentId: string;
+  score: number | null; // null if absent/excused
+  isAbsent: boolean;
+  isExcused: boolean;
+  comment?: string;
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface AttendanceRecord {
+  id: string;
+  sessionId: string;
+  studentId: string;
+  status: AttendanceStatus;
+  lateMinutes?: number;
+  justification?: string;
+}
+
+export interface AttendanceSession {
+  id: string;
+  classId: string;
+  date: string;
+  period: string; // e.g. "08h00 - 09h00"
+  subject: string;
+  notes?: string;
+}
+
+export interface StudentAttendanceSummary {
+  studentId: string;
+  totalSessions: number;
+  presentCount: number;
+  absentCount: number;
+  unexcusedAbsenceCount: number;
+  lateCount: number;
+  totalLateMinutes: number;
+  attendanceRate: number; // in percentage
+}
+
+export interface StudentStats {
+  studentId: string;
+  average: number | null;
+  gradesCount: number;
+  rank: number;
+  attendanceRate: number;
+  absencesCount: number;
+  unexcusedAbsences: number;
+  latesCount: number;
+}
+
+export interface ClassStats {
+  classId: string;
+  studentCount: number;
+  classAverage: number | null;
+  highestAverage: number | null;
+  lowestAverage: number | null;
+  overallAttendanceRate: number;
+  assessmentsCount: number;
+}
+
+export interface ReportCardSubjectRow {
+  subject: string;
+  studentAverage: number | null;
+  classAverage: number | null;
+  minAverage: number | null;
+  maxAverage: number | null;
+  coefficient: number;
+  gradesCount: number;
+  teacherComment: string;
+}
+
+export interface FullReportCard {
+  student: Student;
+  classroom: Classroom;
+  teacher: Teacher;
+  term: string;
+  schoolYear: string;
+  subjectRows: ReportCardSubjectRow[];
+  studentOverallAverage: number | null;
+  classOverallAverage: number | null;
+  rank: number;
+  totalStudents: number;
+  attendance: {
+    totalAbsences: number;
+    unexcusedAbsences: number;
+    latesCount: number;
+  };
+  councilAppreciation: string;
+  honorMention?: 'Félicitations' | 'Compliments' | 'Encouragements' | 'Avertissement de travail' | 'Avertissement de conduite' | null;
+}
+
+export type NavTab = 
+  | 'dashboard' 
+  | 'classes' 
+  | 'students' 
+  | 'grades' 
+  | 'attendance' 
+  | 'reports' 
+  | 'analytics' 
+  | 'settings';
