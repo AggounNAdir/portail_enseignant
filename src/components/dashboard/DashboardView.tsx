@@ -248,74 +248,98 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {classes.map((cls) => {
-                const stats = calculateClassStats(
-                  cls.id,
-                  students,
-                  assessments,
-                  grades,
-                  attendanceRecords
-                );
-                return (
-                  <div
-                    key={cls.id}
-                    onClick={() => {
-                      onSelectClass(cls.id);
-                      onNavigate('students');
-                    }}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group shadow-2xs"
+            {classes.length === 0 ? (
+              <div className="text-center py-10 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                <GraduationCap className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
+                <h3 className="font-bold text-slate-800 text-base">Aucune classe pour le moment</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-5 max-w-md mx-auto">
+                  Votre espace est 100% vierge. Commencez par créer votre première classe (ex: 3ème B, Seconde...) pour y inscrire vos élèves et saisir vos devoirs.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => onNavigate('classes')}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
-                          style={{ backgroundColor: cls.color }}
-                        />
+                    + Créer ma première classe
+                  </button>
+                  <button
+                    onClick={() => onNavigate('settings')}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition cursor-pointer"
+                  >
+                    Personnaliser mon compte
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {classes.map((cls) => {
+                  const stats = calculateClassStats(
+                    cls.id,
+                    students,
+                    assessments,
+                    grades,
+                    attendanceRecords
+                  );
+                  return (
+                    <div
+                      key={cls.id}
+                      onClick={() => {
+                        onSelectClass(cls.id);
+                        onNavigate('students');
+                      }}
+                      className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-white transition-all cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                            style={{ backgroundColor: cls.color }}
+                          />
+                          <div>
+                            <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {cls.name}
+                            </h3>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {cls.level} • {cls.subject}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 font-semibold">
+                          {cls.room || 'Salle std'}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-slate-200/60 text-center">
                         <div>
-                          <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                            {cls.name}
-                          </h3>
-                          <span className="text-xs text-slate-500 font-medium">
-                            {cls.level} • {cls.subject}
+                          <span className="text-[11px] text-slate-500 block">Élèves</span>
+                          <span className="text-base font-bold text-slate-800">
+                            {stats.studentCount}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-500 block">Moyenne</span>
+                          <span
+                            className={`text-base font-bold ${
+                              stats.classAverage !== null && stats.classAverage < 10
+                                ? 'text-rose-600'
+                                : 'text-indigo-600'
+                            }`}
+                          >
+                            {stats.classAverage !== null ? `${stats.classAverage}` : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-slate-500 block">Présence</span>
+                          <span className="text-base font-bold text-emerald-600">
+                            {stats.overallAttendanceRate}%
                           </span>
                         </div>
                       </div>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 font-semibold">
-                        {cls.room || 'Salle std'}
-                      </span>
                     </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-slate-200/60 text-center">
-                      <div>
-                        <span className="text-[11px] text-slate-500 block">Élèves</span>
-                        <span className="text-base font-bold text-slate-800">
-                          {stats.studentCount}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-slate-500 block">Moyenne</span>
-                        <span
-                          className={`text-base font-bold ${
-                            stats.classAverage !== null && stats.classAverage < 10
-                              ? 'text-rose-600'
-                              : 'text-indigo-600'
-                          }`}
-                        >
-                          {stats.classAverage !== null ? `${stats.classAverage}` : '—'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-slate-500 block">Présence</span>
-                        <span className="text-base font-bold text-emerald-600">
-                          {stats.overallAttendanceRate}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Graphique de distribution des moyennes */}

@@ -14,22 +14,35 @@ import {
   initialAssessments,
   initialGrades,
   initialAttendanceSessions,
-  initialAttendanceRecords
+  initialAttendanceRecords,
+  sampleDemoClasses,
+  sampleDemoStudents
 } from '../data/mockData';
 
 const STORAGE_KEYS = {
-  TEACHER: 'profpilot_teacher',
-  CLASSES: 'profpilot_classes',
-  STUDENTS: 'profpilot_students',
-  ASSESSMENTS: 'profpilot_assessments',
-  GRADES: 'profpilot_grades',
-  ATTENDANCE_SESSIONS: 'profpilot_attendance_sessions',
-  ATTENDANCE_RECORDS: 'profpilot_attendance_records',
-  AUTH: 'profpilot_auth_token',
+  TEACHER: 'profpilot_v2_teacher',
+  CLASSES: 'profpilot_v2_classes',
+  STUDENTS: 'profpilot_v2_students',
+  ASSESSMENTS: 'profpilot_v2_assessments',
+  GRADES: 'profpilot_v2_grades',
+  ATTENDANCE_SESSIONS: 'profpilot_v2_attendance_sessions',
+  ATTENDANCE_RECORDS: 'profpilot_v2_attendance_records',
+  AUTH: 'profpilot_v2_auth_token',
 };
 
-// Vérifie et initialise le stockage s'il est vide
+// Vérifie et initialise le stockage vierge s'il est vide
 export function initStorage() {
+  // Nettoyer éventuellement les anciennes clés v1 de test
+  if (localStorage.getItem('profpilot_classes')) {
+    localStorage.removeItem('profpilot_teacher');
+    localStorage.removeItem('profpilot_classes');
+    localStorage.removeItem('profpilot_students');
+    localStorage.removeItem('profpilot_assessments');
+    localStorage.removeItem('profpilot_grades');
+    localStorage.removeItem('profpilot_attendance_sessions');
+    localStorage.removeItem('profpilot_attendance_records');
+  }
+
   if (!localStorage.getItem(STORAGE_KEYS.TEACHER)) {
     localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(initialTeacher));
   }
@@ -165,11 +178,27 @@ export function setAuthenticated(val: boolean): void {
   }
 }
 
+// Purge totale pour repartir à zéro
+export function clearAllApplicationData(): void {
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.GRADES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ATTENDANCE_SESSIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ATTENDANCE_RECORDS, JSON.stringify([]));
+}
+
+// Charger un exemple facultatif
+export function loadOptionalSampleData(): void {
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(sampleDemoClasses));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(sampleDemoStudents));
+}
+
 // Export / Import global des données
 export function exportAllDataAsJSON(): string {
   const payload = {
     exportDate: new Date().toISOString(),
-    version: '1.0.0',
+    version: '2.0.0',
     teacher: getStoredTeacher(),
     classes: getStoredClasses(),
     students: getStoredStudents(),
@@ -184,14 +213,14 @@ export function exportAllDataAsJSON(): string {
 export function importAllDataFromJSON(jsonString: string): boolean {
   try {
     const parsed = JSON.parse(jsonString);
-    if (parsed.classes && parsed.students && parsed.assessments) {
+    if (parsed.classes !== undefined && parsed.students !== undefined) {
       if (parsed.teacher) saveTeacher(parsed.teacher);
-      saveClasses(parsed.classes);
-      saveStudents(parsed.students);
-      saveAssessments(parsed.assessments);
-      if (parsed.grades) saveGrades(parsed.grades);
-      if (parsed.attendanceSessions) saveAttendanceSessions(parsed.attendanceSessions);
-      if (parsed.attendanceRecords) saveAttendanceRecords(parsed.attendanceRecords);
+      saveClasses(parsed.classes || []);
+      saveStudents(parsed.students || []);
+      saveAssessments(parsed.assessments || []);
+      saveGrades(parsed.grades || []);
+      saveAttendanceSessions(parsed.attendanceSessions || []);
+      saveAttendanceRecords(parsed.attendanceRecords || []);
       return true;
     }
     return false;
@@ -199,14 +228,4 @@ export function importAllDataFromJSON(jsonString: string): boolean {
     console.error('Erreur import JSON', e);
     return false;
   }
-}
-
-export function resetAllDataToDemo(): void {
-  localStorage.setItem(STORAGE_KEYS.TEACHER, JSON.stringify(initialTeacher));
-  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(initialClasses));
-  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(initialStudents));
-  localStorage.setItem(STORAGE_KEYS.ASSESSMENTS, JSON.stringify(initialAssessments));
-  localStorage.setItem(STORAGE_KEYS.GRADES, JSON.stringify(initialGrades));
-  localStorage.setItem(STORAGE_KEYS.ATTENDANCE_SESSIONS, JSON.stringify(initialAttendanceSessions));
-  localStorage.setItem(STORAGE_KEYS.ATTENDANCE_RECORDS, JSON.stringify(initialAttendanceRecords));
 }

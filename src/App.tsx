@@ -27,7 +27,8 @@ import {
   saveAttendanceRecords,
   exportAllDataAsJSON,
   importAllDataFromJSON,
-  resetAllDataToDemo,
+  clearAllApplicationData,
+  loadOptionalSampleData,
   isUserAuthenticated,
   setAuthenticated
 } from './services/storage';
@@ -265,15 +266,21 @@ export default function App() {
     return ok;
   };
 
-  const handleResetDemoData = () => {
-    resetAllDataToDemo();
-    setTeacher(getStoredTeacher());
+  const handleClearAllData = () => {
+    clearAllApplicationData();
+    setClasses([]);
+    setStudents([]);
+    setAssessments([]);
+    setGrades([]);
+    setSessions([]);
+    setRecords([]);
+    setSelectedClassId('all');
+  };
+
+  const handleLoadSampleData = () => {
+    loadOptionalSampleData();
     setClasses(getStoredClasses());
     setStudents(getStoredStudents());
-    setAssessments(getStoredAssessments());
-    setGrades(getStoredGrades());
-    setSessions(getStoredAttendanceSessions());
-    setRecords(getStoredAttendanceRecords());
     setSelectedClassId('all');
   };
 
@@ -424,7 +431,8 @@ export default function App() {
               onUpdateTeacher={updateTeacher}
               onExportJSON={handleExportJSON}
               onImportJSON={handleImportJSON}
-              onResetDemoData={handleResetDemoData}
+              onClearAllData={handleClearAllData}
+              onLoadSampleData={handleLoadSampleData}
             />
           )}
         </main>

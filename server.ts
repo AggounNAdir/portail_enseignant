@@ -13,36 +13,17 @@ app.use(express.json());
 // In-memory or database store for backend demonstration
 let mockDB = {
   teacher: {
-    id: 'teacher-1',
-    name: 'M. Thomas Bernard',
-    email: 't.bernard@education.gouv.fr',
-    school: 'Collège & Lycée Victor Hugo',
-    subject: 'Mathématiques & Sciences',
+    id: 'teacher-main',
+    name: 'Nadir Aggoun',
+    email: 'aggounnadir8@gmail.com',
+    school: 'Mon Établissement',
+    subject: 'Matière Principale',
   },
-  classes: [
-    {
-      id: 'class-3b',
-      name: '3ème B',
-      level: '3ème',
-      subject: 'Mathématiques',
-      academicYear: '2024-2025',
-      room: 'Salle 204',
-      color: '#3B82F6',
-    },
-    {
-      id: 'class-4a',
-      name: '4ème A',
-      level: '4ème',
-      subject: 'Mathématiques',
-      academicYear: '2024-2025',
-      room: 'Salle 204',
-      color: '#10B981',
-    }
-  ],
-  students: [],
-  assessments: [],
-  grades: [],
-  attendance: []
+  classes: [] as any[],
+  students: [] as any[],
+  assessments: [] as any[],
+  grades: [] as any[],
+  attendance: [] as any[]
 };
 
 // API Routes
