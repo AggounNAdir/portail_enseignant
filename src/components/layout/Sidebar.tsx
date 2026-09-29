@@ -12,6 +12,7 @@ import {
   Download
 } from 'lucide-react';
 import { NavTab } from '../../types';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -34,63 +35,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onExportJSON,
 }) => {
+  const { t, isRTL } = useLanguage();
+
   const navItems: {
     id: NavTab;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     badge?: number | string;
-    description: string;
   }[] = [
     {
       id: 'dashboard',
-      label: 'Tableau de bord',
+      label: t.dashboard,
       icon: LayoutDashboard,
-      description: 'Vue globale et métriques',
     },
     {
       id: 'classes',
-      label: 'Gestion des classes',
+      label: t.classes,
       icon: GraduationCap,
       badge: classesCount,
-      description: 'Niveaux, matières, salles',
     },
     {
       id: 'students',
-      label: 'Élèves & Fiches',
+      label: t.students,
       icon: Users,
       badge: studentsCount,
-      description: 'Effectif, contacts, import CSV',
     },
     {
       id: 'grades',
-      label: 'Notes & Évaluations',
+      label: t.grades,
       icon: FileSpreadsheet,
       badge: assessmentsCount,
-      description: 'Devoirs, saisie, coefficients',
     },
     {
       id: 'attendance',
-      label: 'Appel & Présences',
+      label: t.attendance,
       icon: ClipboardCheck,
-      description: 'Feuille d’appel et retards',
     },
     {
       id: 'reports',
-      label: 'Bulletins Scolaires',
+      label: t.reportCards,
       icon: Award,
-      description: 'Génération et impression PDF',
     },
     {
       id: 'analytics',
-      label: 'Statistiques & Bilan',
+      label: t.analytics,
       icon: BarChart3,
-      description: 'Courbes et distributions',
     },
     {
       id: 'settings',
-      label: 'Données & Paramètres',
+      label: t.settings,
       icon: Settings,
-      description: 'Sauvegarde JSON & profil',
     },
   ];
 
@@ -127,18 +121,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
                 <div className="truncate">
                   <span className="block truncate text-sm font-semibold">{item.label}</span>
-                  <span
-                    className={`block text-[11px] truncate ${
-                      isActive ? 'text-indigo-100' : 'text-slate-400'
-                    }`}
-                  >
-                    {item.description}
-                  </span>
                 </div>
               </div>
               {item.badge !== undefined && (
                 <span
-                  className={`ml-2 shrink-0 px-2 py-0.5 text-xs font-bold rounded-full ${
+                  className={`${isRTL ? 'mr-2' : 'ml-2'} shrink-0 px-2 py-0.5 text-xs font-bold rounded-full ${
                     isActive
                       ? 'bg-white/20 text-white'
                       : 'bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-700'

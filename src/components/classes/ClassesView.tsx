@@ -38,6 +38,10 @@ const PRESET_COLORS = [
 ];
 
 const AVAILABLE_LEVELS: ClassLevel[] = [
+  '1AM (السنة الأولى متوسط)',
+  '2AM (السنة الثانية متوسط)',
+  '3AM (السنة الثالثة متوسط)',
+  '4AM (السنة الرابعة متوسط - BEM)',
   '6ème',
   '5ème',
   '4ème',
@@ -45,7 +49,6 @@ const AVAILABLE_LEVELS: ClassLevel[] = [
   'Seconde',
   'Première',
   'Terminale',
-  'BTS / Supérieur',
   'Primaire / Autre',
 ];
 

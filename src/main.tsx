@@ -1,6 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { LanguageProvider } from './i18n/LanguageContext';
 
 // Enregistrement du Service Worker pour fonctionnement 100% autonome et hors-ligne sur téléphone
 if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
@@ -11,4 +12,8 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
   });
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <LanguageProvider>
+    <App />
+  </LanguageProvider>
+);

@@ -8,9 +8,11 @@ import {
   ClipboardCheck, 
   PlusCircle, 
   BookOpen,
-  School
+  School,
+  Globe
 } from 'lucide-react';
 import { Teacher, Classroom, NavTab } from '../../types';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface NavbarProps {
   teacher: Teacher;
@@ -35,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   mobileMenuOpen,
   setMobileMenuOpen,
 }) => {
+  const { language, setLanguage, t } = useLanguage();
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -106,6 +109,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <PlusCircle className="w-4 h-4 text-indigo-600" />
               <span>Saisir notes</span>
+            </button>
+
+            {/* Sélecteur de langue */}
+            <button
+              onClick={() => setLanguage(language === 'fr' ? 'ar' : 'fr')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-indigo-300 text-slate-700 transition shadow-2xs cursor-pointer"
+              title={language === 'fr' ? 'Changer en العربية' : 'Passer en Français'}
+            >
+              <Globe className="w-3.5 h-3.5 text-indigo-600" />
+              <span>{language === 'fr' ? '🇩🇿 العربية' : '🇫🇷 Français'}</span>
             </button>
 
             <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Classroom, Student, Assessment, Grade, AssessmentType } from '../../types';
 import { calculateStudentAverage } from '../../utils/calculations';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface GradesViewProps {
   classes: Classroom[];
@@ -31,14 +32,72 @@ interface GradesViewProps {
   onSaveGrades: (updatedGrades: Grade[]) => void;
 }
 
-const ASSESSMENT_TYPES: AssessmentType[] = [
-  'DS',
-  'Contrôle',
-  'DM',
-  'Interrogation',
-  'TP',
-  'Oral',
-  'Projet',
+export interface AssessmentTypeOption {
+  type: AssessmentType;
+  titleSuggestion: string;
+  labelFr: string;
+  labelAr: string;
+  defaultCoef: number;
+  badge: string;
+}
+
+export const CEM_TYPES: AssessmentTypeOption[] = [
+  {
+    type: 'التقويم المستمر',
+    titleSuggestion: 'التقويم المستمر',
+    labelFr: 'التقويم المستمر — Évaluation continue (Discipline, Cahier, Oral)',
+    labelAr: 'التقويم المستمر (مواظبة، كراس، مشاركة)',
+    defaultCoef: 1,
+    badge: 'bg-emerald-100 text-emerald-800'
+  },
+  {
+    type: 'الفرض 1',
+    titleSuggestion: 'الفرض الأول',
+    labelFr: 'الفرض الأول — Devoir Surveillé 1',
+    labelAr: 'الفرض الأول (الفصل)',
+    defaultCoef: 1,
+    badge: 'bg-blue-100 text-blue-800'
+  },
+  {
+    type: 'الفرض 2',
+    titleSuggestion: 'الفرض الثاني',
+    labelFr: 'الفرض الثاني — Devoir Surveillé 2 (Optionnel)',
+    labelAr: 'الفرض الثاني (اختياري)',
+    defaultCoef: 1,
+    badge: 'bg-sky-100 text-sky-800'
+  },
+  {
+    type: 'الاختبار الثلاثي',
+    titleSuggestion: 'الاختبار الثلاثي',
+    labelFr: 'الاختبار الثلاثي — Composition / Examen',
+    labelAr: 'الاختبار الثلاثي (المعامل 2)',
+    defaultCoef: 2,
+    badge: 'bg-purple-100 text-purple-800'
+  },
+  {
+    type: 'استجواب كتابي',
+    titleSuggestion: 'استجواب كتابي',
+    labelFr: 'استجواب كتابي — Interrogation courte',
+    labelAr: 'استجواب كتابي سريع',
+    defaultCoef: 0.5,
+    badge: 'bg-amber-100 text-amber-800'
+  },
+  {
+    type: 'أعمال تطبيقية',
+    titleSuggestion: 'أعمال تطبيقية (مخبر)',
+    labelFr: 'أعمال تطبيقية — Travaux Pratiques / TP',
+    labelAr: 'أعمال تطبيقية / مخبر',
+    defaultCoef: 1,
+    badge: 'bg-teal-100 text-teal-800'
+  },
+  {
+    type: 'واجب منزلي',
+    titleSuggestion: 'واجب منزلي',
+    labelFr: 'واجب منزلي — Devoir à la maison',
+    labelAr: 'واجب منزلي',
+    defaultCoef: 0.5,
+    badge: 'bg-indigo-100 text-indigo-800'
+  }
 ];
 
 export const GradesView: React.FC<GradesViewProps> = ({
@@ -53,6 +112,7 @@ export const GradesView: React.FC<GradesViewProps> = ({
   onDeleteAssessment,
   onSaveGrades,
 }) => {
+  const { t, language, isRTL } = useLanguage();
   // Classe active (si 'all', sélectionner la 1ère classe pour la saisie)
   const activeClassId = selectedClassId !== 'all' ? selectedClassId : (classes[0]?.id || '');
   const activeClass = classes.find((c) => c.id === activeClassId);
@@ -107,21 +167,40 @@ export const GradesView: React.FC<GradesViewProps> = ({
   const [assessmentModalOpen, setAssessmentModalOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [assessmentForm, setAssessmentForm] = useState({
-    title: '',
-    type: 'DS' as AssessmentType,
-    subject: activeClass?.subject || 'Mathématiques',
+    title: 'التقويم المستمر',
+    type: 'التقويم المستمر' as AssessmentType,
+    subject: activeClass?.subject || 'المادة التعليمية',
     date: new Date().toISOString().split('T')[0],
     coefficient: 1,
     maxScore: 20,
     description: '',
   });
 
+  const handleTypeSelect = (selectedType: AssessmentType) => {
+    const match = CEM_TYPES.find((c) => c.type === selectedType);
+    if (match) {
+      setAssessmentForm((prev) => ({
+        ...prev,
+        type: selectedType,
+        coefficient: match.defaultCoef,
+        maxScore: 20,
+        title:
+          prev.title.trim() === '' ||
+          CEM_TYPES.some((c) => c.titleSuggestion === prev.title || c.labelFr.includes(prev.title))
+            ? match.titleSuggestion
+            : prev.title,
+      }));
+    } else {
+      setAssessmentForm((prev) => ({ ...prev, type: selectedType }));
+    }
+  };
+
   const handleOpenAddAssessment = () => {
     setEditingAssessment(null);
     setAssessmentForm({
-      title: '',
-      type: 'DS',
-      subject: activeClass?.subject || 'Mathématiques',
+      title: 'التقويم المستمر',
+      type: 'التقويم المستمر',
+      subject: activeClass?.subject || 'المادة التعليمية',
       date: new Date().toISOString().split('T')[0],
       coefficient: 1,
       maxScore: 20,
@@ -304,8 +383,41 @@ export const GradesView: React.FC<GradesViewProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Nouveau Devoir</span>
+            <span>{language === 'ar' ? '+ إضافة تقييم / فرض' : '+ Nouveau Devoir'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Bannière Spécifique CEM Algérie */}
+      <div className="bg-linear-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-emerald-500/20">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black shrink-0 border border-emerald-400/30 text-sm">
+            CEM
+          </div>
+          <div>
+            <h4 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+              <span>{language === 'ar' ? 'نظام التقويم الرسمي للتعليم المتوسط (الجزائر)' : 'Système Officiel CEM Algérie'}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 font-semibold">
+                {language === 'ar' ? 'رسمي ومعتمد' : 'Conforme MEN'}
+              </span>
+            </h4>
+            <p className="text-xs text-emerald-100/90 mt-0.5">
+              {language === 'ar'
+                ? 'المعدل الفصلي للمادة = [التقويم المستمر + الفرض + (الاختبار × 2)] ÷ 4'
+                : 'Moyenne Trimestrielle = [Contrôle Continu + Devoir + (Examen × 2)] ÷ 4'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-200 border border-white/10 font-semibold">
+            {language === 'ar' ? 'التقويم (1)' : 'Éval. (1)'}
+          </span>
+          <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-200 border border-white/10 font-semibold">
+            {language === 'ar' ? 'الفرض (1)' : 'Devoir (1)'}
+          </span>
+          <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-200 border border-white/10 font-semibold">
+            {language === 'ar' ? 'الاختبار (2)' : 'Examen (2)'}
+          </span>
         </div>
       </div>
 
@@ -707,16 +819,29 @@ export const GradesView: React.FC<GradesViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Type d'épreuve
+                    {language === 'ar' ? 'نوع التقييم (نظام CEM الجزائري)' : 'Type de devoir (Système CEM Algérie)'}
                   </label>
                   <select
                     value={assessmentForm.type}
-                    onChange={(e) => setAssessmentForm({ ...assessmentForm, type: e.target.value as AssessmentType })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    onChange={(e) => handleTypeSelect(e.target.value as AssessmentType)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium"
                   >
-                    {ASSESSMENT_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
+                    <optgroup label={language === 'ar' ? 'نظام التعليم المتوسط الجزائري (CEM)' : 'Système Officiel CEM Algérie'}>
+                      {CEM_TYPES.map((c) => (
+                        <option key={c.type} value={c.type}>
+                          {language === 'ar' ? c.labelAr : c.labelFr}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label={language === 'ar' ? 'أنواع أخرى' : 'Autres types'}>
+                      <option value="DS">Devoir Surveillé (DS)</option>
+                      <option value="Contrôle">Contrôle</option>
+                      <option value="DM">Devoir Maison</option>
+                      <option value="Interrogation">Interrogation</option>
+                      <option value="TP">TP / Pratique</option>
+                      <option value="Oral">Oral</option>
+                      <option value="Projet">Projet</option>
+                    </optgroup>
                   </select>
                 </div>
 

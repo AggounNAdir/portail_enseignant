@@ -8,6 +8,10 @@ export interface Teacher {
 }
 
 export type ClassLevel = 
+  | '1AM (السنة الأولى متوسط)'
+  | '2AM (السنة الثانية متوسط)'
+  | '3AM (السنة الثالثة متوسط)'
+  | '4AM (السنة الرابعة متوسط - BEM)'
   | '6ème'
   | '5ème'
   | '4ème'
@@ -45,7 +49,21 @@ export interface Student {
   createdAt: string;
 }
 
-export type AssessmentType = 'DS' | 'Contrôle' | 'DM' | 'Interrogation' | 'TP' | 'Oral' | 'Projet';
+export type AssessmentType = 
+  | 'التقويم المستمر'
+  | 'الفرض 1'
+  | 'الفرض 2'
+  | 'الاختبار الثلاثي'
+  | 'استجواب كتابي'
+  | 'واجب منزلي'
+  | 'أعمال تطبيقية'
+  | 'DS'
+  | 'Contrôle'
+  | 'DM'
+  | 'Interrogation'
+  | 'TP'
+  | 'Oral'
+  | 'Projet';
 
 export interface Assessment {
   id: string;

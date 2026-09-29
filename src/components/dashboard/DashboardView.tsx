@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Classroom, Student, Assessment, Grade, AttendanceRecord, NavTab } from '../../types';
 import { calculateStudentAverage, calculateClassStats, getGradeDistribution } from '../../utils/calculations';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface DashboardViewProps {
   classes: Classroom[];
@@ -35,6 +36,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
   onSelectClass,
 }) => {
+  const { t, language, isRTL } = useLanguage();
   // Calcul global
   const totalStudents = students.length;
   const totalClasses = classes.length;
@@ -95,13 +97,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-indigo-200 text-xs font-semibold backdrop-blur-md mb-3 border border-white/10">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Tableau de bord enseignant • Année scolaire en cours</span>
+            <span>{language === 'ar' ? 'فضاء الأستاذ • نظام التعليم المتوسط الجزائري (CEM)' : 'Tableau de bord enseignant • Portail CEM'}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Bienvenue sur votre espace de gestion
+            {t.welcome}
           </h1>
           <p className="mt-2 text-indigo-100 text-sm sm:text-base leading-relaxed">
-            Suivez en temps réel les progrès de vos élèves, saisissez les évaluations, réalisez l’appel en quelques clics et éditez vos bulletins scolaires conformes.
+            {t.welcomeSubtitle}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -110,21 +112,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-indigo-950 font-bold text-sm shadow-md hover:bg-indigo-50 transition cursor-pointer"
             >
               <ClipboardCheck className="w-4 h-4 text-emerald-600" />
-              <span>Faire l'appel du jour</span>
+              <span>{t.takeAttendance}</span>
             </button>
             <button
               onClick={() => onNavigate('grades')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-700/80 hover:bg-indigo-700 text-white font-semibold text-sm backdrop-blur-md border border-white/20 transition cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Saisir une évaluation</span>
+              <span>{t.addAssessment}</span>
             </button>
             <button
               onClick={() => onNavigate('reports')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-white font-semibold text-sm border border-white/10 transition cursor-pointer"
             >
               <FileText className="w-4 h-4 text-indigo-300" />
-              <span>Générer les bulletins</span>
+              <span>{t.generateReports}</span>
             </button>
           </div>
         </div>

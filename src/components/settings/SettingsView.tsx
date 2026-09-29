@@ -13,9 +13,11 @@ import {
   School,
   Save,
   Sparkles,
-  Lock
+  Lock,
+  Globe
 } from 'lucide-react';
 import { Teacher } from '../../types';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface SettingsViewProps {
   teacher: Teacher;
@@ -34,6 +36,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onClearAllData,
   onLoadSampleData,
 }) => {
+  const { language, setLanguage, t, isRTL } = useLanguage();
   const [formData, setFormData] = useState({
     name: teacher.name,
     email: teacher.email,
@@ -102,11 +105,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
           <Settings className="w-7 h-7 text-indigo-600" />
-          <span>Personnalisation & Paramètres</span>
+          <span>{language === 'ar' ? 'الإعدادات وتخصيص الحساب' : 'Personnalisation & Paramètres'}</span>
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Personnalisez votre compte enseignant, vos coordonnées académiques et gérez la sauvegarde de vos classes.
+          {language === 'ar'
+            ? 'تخصيص بيانات الأستاذ، اختيار اللغة، وإدارة النسخ الاحتياطية للأقسام والبيانات.'
+            : 'Personnalisez votre compte enseignant, vos coordonnées académiques et gérez la sauvegarde de vos classes.'}
         </p>
+      </div>
+
+      {/* Sélecteur de langue / اختيار لغة التطبيق */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <Globe className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">
+              {language === 'ar' ? 'لغة واجهة التطبيق' : "Langue de l'interface"}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {language === 'ar' ? 'التبديل بين العربية والفرنسية مع توجيه النص التلقائي' : "Basculez entre le Français et l'Arabe avec adaptation automatique de la direction"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => setLanguage('ar')}
+            className={`p-4 rounded-xl border text-right transition cursor-pointer flex items-center justify-between ${
+              language === 'ar'
+                ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                : 'border-slate-200 hover:border-slate-300 bg-white'
+            }`}
+          >
+            <div>
+              <span className="font-bold text-sm text-slate-900 block">🇩🇿 العربية (الجزائر)</span>
+              <span className="text-xs text-slate-500 block mt-0.5">نظام التعليم المتوسط الجزائري (CEM)</span>
+            </div>
+            {language === 'ar' && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setLanguage('fr')}
+            className={`p-4 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+              language === 'fr'
+                ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                : 'border-slate-200 hover:border-slate-300 bg-white'
+            }`}
+          >
+            <div>
+              <span className="font-bold text-sm text-slate-900 block">🇫🇷 Français</span>
+              <span className="text-xs text-slate-500 block mt-0.5">Interface en français</span>
+            </div>
+            {language === 'fr' && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </button>
+        </div>
       </div>
 
       {/* Profil enseignant personnalisable */}
