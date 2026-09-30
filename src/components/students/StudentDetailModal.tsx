@@ -72,8 +72,15 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             )}
 
             <div className="text-center sm:text-left flex-1">
-              <div className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-indigo-200 mb-1.5 backdrop-blur-md">
-                {currentClass?.name} • {currentClass?.level}
+              <div className="flex flex-wrap items-center gap-2 mb-1.5 justify-center sm:justify-start">
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-indigo-200 backdrop-blur-md">
+                  {currentClass?.name} • {currentClass?.level}
+                </span>
+                <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black tracking-wider backdrop-blur-md ${
+                  student.group === '2' ? 'bg-blue-500/30 text-blue-200 border border-blue-400/30' : 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/30'
+                }`}>
+                  {student.group === '2' ? 'الفوج 2 (Groupe 2 - TD)' : 'الفوج 1 (Groupe 1 - TD)'}
+                </span>
               </div>
               <h2 className="text-2xl font-black tracking-tight">
                 {student.lastName.toUpperCase()} {student.firstName}

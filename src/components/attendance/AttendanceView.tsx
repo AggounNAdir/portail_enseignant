@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Classroom, Student, AttendanceSession, AttendanceRecord, AttendanceStatus } from '../../types';
 import { calculateStudentAttendance } from '../../utils/calculations';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface AttendanceViewProps {
   classes: Classroom[];
@@ -39,12 +40,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   onSelectClassId,
   onSaveSession,
 }) => {
+  const { t, language, isRTL } = useLanguage();
   const activeClassId = selectedClassId !== 'all' ? selectedClassId : (classes[0]?.id || '');
   const activeClass = classes.find((c) => c.id === activeClassId);
 
+  // Mode de séance : classe entière ('all') ou groupe TD ('1' ou '2')
+  const [sessionGroup, setSessionGroup] = useState<'all' | '1' | '2'>('all');
+
   const classStudents = useMemo(() => {
-    return students.filter((s) => s.classId === activeClassId);
-  }, [students, activeClassId]);
+    const inClass = students.filter((s) => s.classId === activeClassId);
+    if (sessionGroup === 'all') return inClass;
+    return inClass.filter((s) => (s.group || '1') === sessionGroup);
+  }, [students, activeClassId, sessionGroup]);
 
   // Mode : 'call' (faire l'appel) ou 'history' (historique & statistiques)
   const [activeTab, setActiveTab] = useState<'call' | 'history'>('call');
@@ -134,6 +141,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         date: sessionDate,
         period: sessionPeriod,
         subject: sessionSubject,
+        group: sessionGroup,
         notes: sessionNotes.trim() || undefined,
       },
       payloadRecords
@@ -229,7 +237,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <form onSubmit={handleSaveCall} className="space-y-6">
           {/* Configuration du créneau horaire */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  {language === 'ar' ? 'نوع الحصة / الفوج' : 'Type de séance / Groupe'}
+                </label>
+                <select
+                  value={sessionGroup}
+                  onChange={(e) => setSessionGroup(e.target.value as 'all' | '1' | '2')}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold bg-slate-50"
+                >
+                  <option value="all">{language === 'ar' ? 'القسم كاملاً (حصة عادية)' : 'Classe entière (cours)'}</option>
+                  <option value="1">{language === 'ar' ? 'الفوج 1 — حصة TD / TP' : 'Groupe 1 — TD / TP'}</option>
+                  <option value="2">{language === 'ar' ? 'الفوج 2 — حصة TD / TP' : 'Groupe 2 — TD / TP'}</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Date de la séance
@@ -274,13 +297,30 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: TP en salle informatique, contrôle..."
+                  placeholder="Ex: TP en laboratoire, TD 1..."
                   value={sessionNotes}
                   onChange={(e) => setSessionNotes(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
+
+            {/* Notification de séance TD si groupe sélectionné */}
+            {sessionGroup !== 'all' && (
+              <div className="mt-4 px-3.5 py-2.5 rounded-xl bg-purple-50 text-purple-900 border border-purple-200 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span className="font-semibold">
+                    {language === 'ar'
+                      ? `حصة أعمال موجهة (TD) / مخبر مخصصة لتلاميذ الفوج ${sessionGroup} فقط (${classStudents.length} تلميذ حاضر في القائمة).`
+                      : `Séance de Travaux Dirigés (TD) / TP restreinte aux élèves du Groupe ${sessionGroup} (${classStudents.length} élèves affichés).`}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-purple-200/60 font-black text-purple-800 text-[11px]">
+                  {sessionGroup === '1' ? 'الفوج 1 (G1)' : 'الفوج 2 (G2)'}
+                </span>
+              </div>
+            )}
 
             {/* Barre de contrôle rapide et compteurs de présence */}
             <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -575,9 +615,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                             <Calendar className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="font-bold text-slate-900 text-sm">
-                              Séance du {new Date(session.date).toLocaleDateString('fr-FR')} • {session.period}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-slate-900 text-sm">
+                                Séance du {new Date(session.date).toLocaleDateString('fr-FR')} • {session.period}
+                              </span>
+                              {session.group && session.group !== 'all' ? (
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${
+                                  session.group === '2' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}>
+                                  {session.group === '2' ? 'الفوج 2 (TD)' : 'الفوج 1 (TD)'}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                  {language === 'ar' ? 'القسم كاملاً' : 'Classe entière'}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-slate-500 block">
                               Matière : {session.subject} {session.notes ? `(« ${session.notes} »)` : ''}
                             </span>

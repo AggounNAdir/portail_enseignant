@@ -46,6 +46,7 @@ export interface Student {
   parentEmail?: string;
   address?: string;
   observations?: string;
+  group?: '1' | '2'; // الفوج 1 أو الفوج 2 للأعمال الموجهة TD والتطبيقية TP
   createdAt: string;
 }
 
@@ -74,6 +75,7 @@ export interface Assessment {
   coefficient: number;
   maxScore: number; // default 20
   type: AssessmentType;
+  targetGroup?: 'all' | '1' | '2'; // لكامل القسم أو لفوج معين
   description?: string;
 }
 
@@ -104,6 +106,7 @@ export interface AttendanceSession {
   date: string;
   period: string; // e.g. "08h00 - 09h00"
   subject: string;
+  group?: 'all' | '1' | '2'; // جلسة عادية للقسم كاملاً أو حصة TD للفوج 1 / 2
   notes?: string;
 }
 

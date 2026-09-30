@@ -140,6 +140,14 @@ export const GradesView: React.FC<GradesViewProps> = ({
     return students.filter((s) => s.classId === activeClassId);
   }, [students, activeClassId]);
 
+  // Filtre groupe TD pour la saisie des notes (Tous / G1 / G2)
+  const [gradeGroupFilter, setGradeGroupFilter] = useState<'all' | '1' | '2'>('all');
+
+  const displayStudents = useMemo(() => {
+    if (gradeGroupFilter === 'all') return classStudents;
+    return classStudents.filter((s) => (s.group || '1') === gradeGroupFilter);
+  }, [classStudents, gradeGroupFilter]);
+
   // État local des notes pour le devoir sélectionné (permet une saisie fluide sans lag)
   const [localGrades, setLocalGrades] = useState<Record<string, { score: string; isAbsent: boolean; isExcused: boolean; comment: string }>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -586,8 +594,53 @@ export const GradesView: React.FC<GradesViewProps> = ({
                 </div>
               )}
 
+              {/* Filtre Groupe TD et Tableau de saisie rapide */}
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGradeGroupFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                      gradeGroupFilter === 'all'
+                        ? 'bg-white text-indigo-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {language === 'ar' ? 'الكل' : 'Tous'} ({classStudents.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGradeGroupFilter('1')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
+                      gradeGroupFilter === '1'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-emerald-700'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>{language === 'ar' ? 'الفوج 1 (G1)' : 'Groupe 1 (G1)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGradeGroupFilter('2')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
+                      gradeGroupFilter === '2'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-blue-700'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span>{language === 'ar' ? 'الفوج 2 (G2)' : 'Groupe 2 (G2)'}</span>
+                  </button>
+                </div>
+
+                <span className="text-xs text-slate-500 font-medium">
+                  {displayStudents.length} {language === 'ar' ? 'تلميذ في القائمة' : 'élèves affichés'}
+                </span>
+              </div>
+
               {/* Tableau de saisie rapide */}
-              <div className="mt-4 overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                     <tr>
@@ -598,7 +651,7 @@ export const GradesView: React.FC<GradesViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {classStudents.map((student) => {
+                    {displayStudents.map((student) => {
                       const entry = localGrades[student.id] || {
                         score: '',
                         isAbsent: false,
@@ -609,9 +662,18 @@ export const GradesView: React.FC<GradesViewProps> = ({
                       return (
                         <tr key={student.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-2.5 px-3">
-                            <span className="font-bold text-slate-900 block text-xs">
-                              {student.lastName.toUpperCase()} {student.firstName}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 block text-xs">
+                                {student.lastName.toUpperCase()} {student.firstName}
+                              </span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border ${
+                                student.group === '2'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                {student.group === '2' ? 'فوج 2' : 'فوج 1'}
+                              </span>
+                            </div>
                           </td>
 
                           {/* Champ de note */}

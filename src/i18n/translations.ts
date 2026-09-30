@@ -106,6 +106,16 @@ export interface Translations {
   schoolName: string;
   mainSubject: string;
   algerianCemNotice: string;
+  group: string;
+  group1: string;
+  group2: string;
+  allGroups: string;
+  splitGroupsAuto: string;
+  splitGroupsAutoDesc: string;
+  assignGroup: string;
+  filterByGroup: string;
+  tdSession: string;
+  tdNotice: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -213,7 +223,17 @@ export const translations: Record<Language, Translations> = {
     teacherAccount: "Mon Compte Enseignant",
     schoolName: "Établissement (CEM / Établissement)",
     mainSubject: "Matière principale",
-    algerianCemNotice: "Système officiel CEM Algérie appliqué : التقويم المستمر (Coef 1) + الفرض (Coef 1) + الاختبار (Coef 2) / 4"
+    algerianCemNotice: "Système officiel CEM Algérie appliqué : التقويم المستمر (Coef 1) + الفرض (Coef 1) + الاختبار (Coef 2) / 4",
+    group: "Groupe TD / TP",
+    group1: "Groupe 1 (الفوج 1)",
+    group2: "Groupe 2 (الفوج 2)",
+    allGroups: "Toute la classe (القسم كاملاً)",
+    splitGroupsAuto: "Diviser en 2 groupes TD (50% / 50%)",
+    splitGroupsAutoDesc: "Répartit automatiquement les élèves de la classe en Groupe 1 et Groupe 2 par ordre alphabétique.",
+    assignGroup: "Attribuer le groupe",
+    filterByGroup: "Filtrer par groupe TD",
+    tdSession: "Séance de TD / TP",
+    tdNotice: "Gestion par groupes : appel et travaux dirigés par فوج"
   },
   ar: {
     appName: "بروف بايلوت",
@@ -319,6 +339,16 @@ export const translations: Record<Language, Translations> = {
     teacherAccount: "حساب وبيانات الأستاذ",
     schoolName: "المتوسطة / المؤسسة التعليمية",
     mainSubject: "المادة المسندة",
-    algerianCemNotice: "النظام المطبق: التقويم المستمر (1) + الفرض (1) + الاختبار (2) مقسوم على 4"
+    algerianCemNotice: "النظام المطبق: التقويم المستمر (1) + الفرض (1) + الاختبار (2) مقسوم على 4",
+    group: "فوج الأعمال الموجهة (TD/TP)",
+    group1: "الفوج 1 (Groupe 1)",
+    group2: "الفوج 2 (Groupe 2)",
+    allGroups: "القسم كاملاً (Toute la classe)",
+    splitGroupsAuto: "تقسيم القسم إلى فوجين تلقائياً (50% / 50%)",
+    splitGroupsAutoDesc: "توزيع تلاميذ القسم بالتساوي إلى الفوج 1 والفوج 2 حسب الترتيب الأبجدي لحصص الأعمال الموجهة والمخبر.",
+    assignGroup: "تعيين الفوج",
+    filterByGroup: "تصفية حسب الفوج",
+    tdSession: "حصة أعمال موجهة / مخبر (TD/TP)",
+    tdNotice: "نظام الأفواج: تسجيل غيابات الأعمال الموجهة حسب الفوج"
   }
 };

@@ -21,6 +21,7 @@ import {
 import { Student, Classroom, Assessment, Grade, AttendanceRecord } from '../../types';
 import { calculateStudentAverage, exportStudentsToCSV, parseStudentsCSV } from '../../utils/calculations';
 import { StudentDetailModal } from './StudentDetailModal';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface StudentsViewProps {
   students: Student[];
@@ -51,8 +52,10 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   onImportStudents,
   onOpenReportCard,
 }) => {
+  const { t, language, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDifficultyOnly, setFilterDifficultyOnly] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<'all' | '1' | '2'>('all');
 
   // Modales
   const [addEditModalOpen, setAddEditModalOpen] = useState(false);
@@ -73,6 +76,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     parentEmail: '',
     address: '',
     observations: '',
+    group: '1' as '1' | '2',
   });
 
   // State pour l'import CSV
@@ -88,6 +92,11 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       // Filtre classe
       if (selectedClassId !== 'all' && s.classId !== selectedClassId) {
         return false;
+      }
+      // Filtre groupe TD
+      if (groupFilter !== 'all') {
+        const studentGrp = s.group || '1';
+        if (studentGrp !== groupFilter) return false;
       }
       // Filtre recherche textuelle
       const q = searchQuery.toLowerCase().trim();
@@ -106,7 +115,58 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       }
       return true;
     });
-  }, [students, selectedClassId, searchQuery, filterDifficultyOnly, assessments, grades]);
+  }, [students, selectedClassId, groupFilter, searchQuery, filterDifficultyOnly, assessments, grades]);
+
+  // Répartition automatique de la classe en 2 groupes TD 50/50
+  const handleSplitClassInto2Groups = () => {
+    const classIdToSplit = selectedClassId !== 'all' ? selectedClassId : classes[0]?.id;
+    if (!classIdToSplit) {
+      alert(language === 'ar' ? 'يرجى اختيار قسم أولاً لتوزيع تلاميذه.' : 'Veuillez d’abord sélectionner une classe.');
+      return;
+    }
+
+    const classObj = classes.find((c) => c.id === classIdToSplit);
+    const targetStudents = students.filter((s) => s.classId === classIdToSplit);
+
+    if (targetStudents.length === 0) {
+      alert(language === 'ar' ? 'لا يوجد تلاميذ في هذا القسم.' : 'Cette classe ne contient aucun élève.');
+      return;
+    }
+
+    const confirmMsg =
+      language === 'ar'
+        ? `هل تريد تقسيم تلاميذ قسم "${classObj?.name}" (${targetStudents.length} تلميذ) إلى فوجين بالتساوي بحسب الترتيب الأبجدي؟\n- النصف الأول: الفوج 1\n- النصف الثاني: الفوج 2`
+        : `Voulez-vous répartir automatiquement les ${targetStudents.length} élèves de la classe "${classObj?.name}" en 2 groupes TD égaux selon l’ordre alphabétique ?\n- Première moitié : Groupe 1 (الفوج 1)\n- Deuxième moitié : Groupe 2 (الفوج 2)`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    // Tri alphabétique par Nom puis Prénom
+    const sorted = [...targetStudents].sort((a, b) => {
+      const nameComp = a.lastName.localeCompare(b.lastName, 'fr', { sensitivity: 'base' });
+      if (nameComp !== 0) return nameComp;
+      return a.firstName.localeCompare(b.firstName, 'fr', { sensitivity: 'base' });
+    });
+
+    const half = Math.ceil(sorted.length / 2);
+    sorted.forEach((st, idx) => {
+      const assigned: '1' | '2' = idx < half ? '1' : '2';
+      if (st.group !== assigned) {
+        onUpdateStudent({ ...st, group: assigned });
+      }
+    });
+
+    alert(
+      language === 'ar'
+        ? `تم تقسيم التلاميذ بنجاح!\n- الفوج 1: ${half} تلميذ\n- الفوج 2: ${sorted.length - half} تلميذ`
+        : `Répartition effectuée avec succès !\n- Groupe 1 : ${half} élèves\n- Groupe 2 : ${sorted.length - half} élèves`
+    );
+  };
+
+  // Bascule rapide de groupe pour un élève (G1 <-> G2)
+  const handleToggleStudentGroup = (s: Student) => {
+    const nextGroup: '1' | '2' = (s.group || '1') === '1' ? '2' : '1';
+    onUpdateStudent({ ...s, group: nextGroup });
+  };
 
   // Ouverture formulaire Ajout
   const handleOpenAdd = () => {
@@ -123,6 +183,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       parentEmail: '',
       address: '',
       observations: '',
+      group: '1',
     });
     setAddEditModalOpen(true);
   };
@@ -142,6 +203,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       parentEmail: s.parentEmail || '',
       address: s.address || '',
       observations: s.observations || '',
+      group: s.group || '1',
     });
     setAddEditModalOpen(true);
   };
@@ -239,6 +301,15 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5">
           <button
+            onClick={handleSplitClassInto2Groups}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-bold text-xs transition cursor-pointer"
+            title={language === 'ar' ? 'تقسيم القسم إلى فوجين بالتساوي للأعمال الموجهة' : 'Diviser la classe en 2 groupes TD 50/50'}
+          >
+            <Users className="w-4 h-4 text-purple-600" />
+            <span>{language === 'ar' ? 'تقسيم لفوجين TD (50/50)' : 'Diviser en 2 groupes TD'}</span>
+          </button>
+
+          <button
             onClick={() => setImportModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
             title="Importer une liste d'élèves CSV"
@@ -273,7 +344,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher par nom, prénom, email ou téléphone parent..."
+            placeholder={language === 'ar' ? 'بحث عن تلميذ بالاسم أو اللقب...' : 'Rechercher par nom, prénom, email ou téléphone parent...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -288,8 +359,9 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           )}
         </div>
 
-        {/* Filtres par classe et par statut */}
+        {/* Filtres par classe, groupe TD et difficulté */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Filtre Classe */}
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400 shrink-0" />
             <select
@@ -304,6 +376,45 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Filtre Groupe TD (الفوج 1 / الفوج 2) */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+            <button
+              type="button"
+              onClick={() => setGroupFilter('all')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                groupFilter === 'all'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {language === 'ar' ? 'الكل' : 'Tous'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setGroupFilter('1')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                groupFilter === '1'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-emerald-700'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{language === 'ar' ? 'فوج 1' : 'G1'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setGroupFilter('2')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                groupFilter === '2'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-blue-700'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+              <span>{language === 'ar' ? 'فوج 2' : 'G2'}</span>
+            </button>
           </div>
 
           <button
@@ -387,21 +498,36 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Classe */}
+                      {/* Classe et Groupe TD */}
                       <td className="py-3 px-4">
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                          style={{
-                            backgroundColor: `${studentClass?.color || '#3b82f6'}15`,
-                            color: studentClass?.color || '#3b82f6',
-                          }}
-                        >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                           <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: studentClass?.color || '#3b82f6' }}
-                          />
-                          {studentClass?.name || 'Non affecté'}
-                        </span>
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold"
+                            style={{
+                              backgroundColor: `${studentClass?.color || '#3b82f6'}15`,
+                              color: studentClass?.color || '#3b82f6',
+                            }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: studentClass?.color || '#3b82f6' }}
+                            />
+                            {studentClass?.name || 'Non affecté'}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStudentGroup(student)}
+                            title={language === 'ar' ? 'انقر لتغيير الفوج (الفوج 1 ⇄ الفوج 2)' : 'Cliquer pour changer de groupe TD (G1 ⇄ G2)'}
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-black border transition cursor-pointer ${
+                              student.group === '2'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {student.group === '2' ? (language === 'ar' ? 'فوج 2' : 'G2 (فوج 2)') : (language === 'ar' ? 'فوج 1' : 'G1 (فوج 1)')}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Moyenne */}
@@ -580,6 +706,20 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <option value="M">Masculin (M)</option>
                     <option value="F">Féminin (F)</option>
                     <option value="Autre">Autre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    {language === 'ar' ? 'فوج الأعمال الموجهة (TD/TP)' : 'Groupe TD / TP'}
+                  </label>
+                  <select
+                    value={formData.group}
+                    onChange={(e) => setFormData({ ...formData, group: e.target.value as '1' | '2' })}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold"
+                  >
+                    <option value="1">{language === 'ar' ? 'الفوج 1 (Groupe 1)' : 'Groupe 1 (الفوج 1)'}</option>
+                    <option value="2">{language === 'ar' ? 'الفوج 2 (Groupe 2)' : 'Groupe 2 (الفوج 2)'}</option>
                   </select>
                 </div>
               </div>
