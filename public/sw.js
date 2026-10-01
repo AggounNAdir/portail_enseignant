@@ -1,4 +1,4 @@
-const CACHE_NAME = 'profpilot-cache-v3';
+const CACHE_NAME = 'profpilot-cache-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -37,7 +37,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // Stratégie Stale-While-Revalidate pour la navigation et les assets
+  // Pour la navigation (HTML), faire un Network-First pour toujours recevoir la dernière version
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const resClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((res) => res || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // Pour les autres assets (CSS, JS hachés, images), Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -49,10 +63,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // En cas de coupure totale (PC éteint / hors ligne), retourner la page d'accueil en cache
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
+        return cachedResponse;
       });
 
       return cachedResponse || fetchPromise;

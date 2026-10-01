@@ -152,10 +152,48 @@ export default function App() {
     saveAttendanceRecords(updatedRecords);
   };
 
-  const handleImportStudents = (imported: Student[]) => {
-    const updated = [...students, ...imported];
+  const handleImportStudents = (imported: Student[], replaceClass?: boolean) => {
+    let updated: Student[];
+    if (replaceClass && imported.length > 0) {
+      const targetClassId = imported[0].classId;
+      const remaining = students.filter((s) => s.classId !== targetClassId);
+      updated = [...remaining, ...imported];
+    } else {
+      updated = [...students, ...imported];
+    }
     setStudents(updated);
     saveStudents(updated);
+  };
+
+  const handleDeleteMultipleStudents = (studentIds: string[]) => {
+    const idsSet = new Set(studentIds);
+    const updated = students.filter((s) => !idsSet.has(s.id));
+    setStudents(updated);
+    saveStudents(updated);
+
+    const updatedGrades = grades.filter((g) => !idsSet.has(g.studentId));
+    setGrades(updatedGrades);
+    saveGrades(updatedGrades);
+
+    const updatedRecords = records.filter((r) => !idsSet.has(r.studentId));
+    setRecords(updatedRecords);
+    saveAttendanceRecords(updatedRecords);
+  };
+
+  const handleClearClassStudents = (classId: string) => {
+    const studentsToDelete = students.filter((s) => s.classId === classId);
+    const idsSet = new Set(studentsToDelete.map((s) => s.id));
+    const updated = students.filter((s) => s.classId !== classId);
+    setStudents(updated);
+    saveStudents(updated);
+
+    const updatedGrades = grades.filter((g) => !idsSet.has(g.studentId));
+    setGrades(updatedGrades);
+    saveGrades(updatedGrades);
+
+    const updatedRecords = records.filter((r) => !idsSet.has(r.studentId));
+    setRecords(updatedRecords);
+    saveAttendanceRecords(updatedRecords);
   };
 
   // Gestion des devoirs
@@ -367,6 +405,8 @@ export default function App() {
               onAddStudent={handleAddStudent}
               onUpdateStudent={handleUpdateStudent}
               onDeleteStudent={handleDeleteStudent}
+              onDeleteMultipleStudents={handleDeleteMultipleStudents}
+              onClearClassStudents={handleClearClassStudents}
               onImportStudents={handleImportStudents}
               onOpenReportCard={handleOpenReportCardForStudent}
             />

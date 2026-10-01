@@ -35,7 +35,9 @@ interface StudentsViewProps {
   onAddStudent: (newStudent: Omit<Student, 'id' | 'createdAt'>) => void;
   onUpdateStudent: (updated: Student) => void;
   onDeleteStudent: (studentId: string) => void;
-  onImportStudents: (imported: Student[]) => void;
+  onDeleteMultipleStudents?: (studentIds: string[]) => void;
+  onClearClassStudents?: (classId: string) => void;
+  onImportStudents: (imported: Student[], replaceClass?: boolean) => void;
   onOpenReportCard: (student: Student) => void;
 }
 
@@ -50,6 +52,8 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent,
+  onDeleteMultipleStudents,
+  onClearClassStudents,
   onImportStudents,
   onOpenReportCard,
 }) => {
@@ -86,6 +90,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   const [csvFileContent, setCsvFileContent] = useState<string>('');
   const [pasteMode, setPasteMode] = useState<boolean>(false);
   const [pastedCSV, setPastedCSV] = useState<string>('');
+  const [replaceClassOnImport, setReplaceClassOnImport] = useState<boolean>(true);
   const [importTargetClassId, setImportTargetClassId] = useState<string>(
     selectedClassId !== 'all' ? selectedClassId : classes[0]?.id || ''
   );
@@ -121,6 +126,57 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       return true;
     });
   }, [students, selectedClassId, groupFilter, searchQuery, filterDifficultyOnly, assessments, grades]);
+
+  // Détection des élèves dont le nom est un chiffre (issu d'une importation précédente erronée)
+  const hasCorruptedNames = useMemo(() => {
+    return filteredStudents.some(
+      (s) => /^\d+$/.test(s.lastName.trim()) || /^\d+$/.test(s.firstName.trim())
+    );
+  }, [filteredStudents]);
+
+  // Vider les élèves de la classe sélectionnée
+  const handleClearCurrentClass = () => {
+    if (selectedClassId === 'all') {
+      alert(language === 'ar' ? 'يرجى تحديد قسم معين لحذف تلاميذه.' : 'Veuillez sélectionner une classe spécifique.');
+      return;
+    }
+    const currentClass = classes.find((c) => c.id === selectedClassId);
+    const classStudents = students.filter((s) => s.classId === selectedClassId);
+    if (classStudents.length === 0) return;
+
+    const msg =
+      language === 'ar'
+        ? `هل تريد مسح جميع تلاميذ قسم (${currentClass?.name}) البالغ عددهم ${classStudents.length} تلميذ للتخلص من الأرقام القديمة وإعادة استيرادهم بالأسماء السليمة؟`
+        : `Voulez-vous supprimer tous les élèves de la classe ${currentClass?.name} (${classStudents.length} élèves) pour nettoyer les erreurs et réimporter ?`;
+
+    if (window.confirm(msg)) {
+      if (onClearClassStudents) {
+        onClearClassStudents(selectedClassId);
+      } else if (onDeleteMultipleStudents) {
+        onDeleteMultipleStudents(classStudents.map((s) => s.id));
+      } else {
+        classStudents.forEach((s) => onDeleteStudent(s.id));
+      }
+      setSelectedStudentIds([]);
+    }
+  };
+
+  // Suppression groupée des élèves sélectionnés
+  const handleBulkDelete = () => {
+    if (selectedStudentIds.length === 0) return;
+    const msg =
+      language === 'ar'
+        ? `هل أنت متأكد من حذف ${selectedStudentIds.length} تلميذ محدد؟`
+        : `Confirmez-vous la suppression de ces ${selectedStudentIds.length} élèves ?`;
+    if (window.confirm(msg)) {
+      if (onDeleteMultipleStudents) {
+        onDeleteMultipleStudents(selectedStudentIds);
+      } else {
+        selectedStudentIds.forEach((id) => onDeleteStudent(id));
+      }
+      setSelectedStudentIds([]);
+    }
+  };
 
   // Répartition automatique de la classe en 2 groupes TD 50/50
   const handleSplitClassInto2Groups = () => {
@@ -327,14 +383,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
   const handleConfirmImport = () => {
     if (importResult && importResult.success.length > 0) {
-      onImportStudents(importResult.success);
+      onImportStudents(importResult.success, replaceClassOnImport);
       setImportModalOpen(false);
       setImportResult(null);
       setCsvFileContent('');
       setPastedCSV('');
       alert(
         language === 'ar'
-          ? `تم استيراد ${importResult.success.length} تلميذ بنجاح إلى القسم المحدد!`
+          ? `تم استيراد ${importResult.success.length} تلميذ بنجاح مع أسمائهم وألقابهم السليمة!`
           : `${importResult.success.length} élève(s) importé(s) avec succès !`
       );
     }
@@ -494,45 +550,100 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
         </div>
       </div>
 
-      {/* Barre d'action groupée pour assigner le groupe manuellement */}
+      {/* Barre d'action groupée pour assigner le groupe manuellement ou supprimer */}
       {selectedStudentIds.length > 0 && (
-        <div className="bg-linear-to-r from-slate-900 to-indigo-950 text-white px-5 py-3.5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3 animate-fade-in border border-indigo-500/30">
+        <div className="fixed bottom-4 left-4 right-4 sm:static sm:mb-4 z-50 bg-slate-900/95 text-white px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 animate-fade-in border-2 border-rose-500/50">
           <div className="flex items-center gap-2.5 text-xs font-bold">
-            <span className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-black">
+            <span className="w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
               {selectedStudentIds.length}
             </span>
-            <span>
+            <span className="text-sm font-extrabold">
               {language === 'ar'
-                ? `تم تحديد ${selectedStudentIds.length} تلميذ. اختر الفوج الذي تريد وضعهم فيه :`
-                : `${selectedStudentIds.length} élève(s) sélectionné(s). Choisissez leur groupe :`}
+                ? `تم تحديد ${selectedStudentIds.length} تلميذ :`
+                : `${selectedStudentIds.length} élève(s) sélectionné(s) :`}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={handleBulkDelete}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-lg transition cursor-pointer flex items-center gap-1.5"
+              title="Supprimer les élèves sélectionnés"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>
+                {language === 'ar'
+                  ? `🗑️ حذف المحددين (${selectedStudentIds.length})`
+                  : `Supprimer (${selectedStudentIds.length})`}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => handleBulkAssignGroup('1')}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-md transition cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-md transition cursor-pointer flex items-center gap-1.5"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-300" />
-              <span>{language === 'ar' ? 'نقل إلى الفوج 1 (G1)' : 'Mettre dans Groupe 1'}</span>
+              <span>{language === 'ar' ? 'الفوج 1' : 'Groupe 1'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleBulkAssignGroup('2')}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md transition cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md transition cursor-pointer flex items-center gap-1.5"
             >
               <span className="w-2 h-2 rounded-full bg-blue-300" />
-              <span>{language === 'ar' ? 'نقل إلى الفوج 2 (G2)' : 'Mettre dans Groupe 2'}</span>
+              <span>{language === 'ar' ? 'الفوج 2' : 'Groupe 2'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setSelectedStudentIds([])}
-              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-medium transition cursor-pointer"
+              className="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-medium transition cursor-pointer"
             >
-              {language === 'ar' ? 'إلغاء التحديد' : 'Désélectionner'}
+              {language === 'ar' ? 'إلغاء' : 'Annuler'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Alerte si des élèves ont un numéro au lieu de leur nom (issu d'une importation précédente) */}
+      {hasCorruptedNames && (
+        <div className="bg-amber-50 border-2 border-amber-300 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-200/80 text-amber-900 flex items-center justify-center shrink-0 font-black text-xl">
+              ⚠️
+            </div>
+            <div>
+              <p className="font-extrabold text-xs sm:text-sm text-amber-950">
+                {language === 'ar'
+                  ? 'تنبيه : بعض التلاميذ يظهر رقم التسجيل مكان أسمائهم (بسبب استيراد قديم).'
+                  : 'Attention : le numéro d’inscription apparaît à la place du nom (issu d’un ancien import).'}
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                {language === 'ar'
+                  ? 'اضغط هنا لمسح الأرقام القديمة وإعادة استيراد القائمة الصحيحة بضغطة واحدة وبكل سهولة.'
+                  : 'Cliquez ci-contre pour effacer les anciens numéros et réimporter la liste avec les vrais noms arabes.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleClearCurrentClass}
+              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{language === 'ar' ? 'مسح الأرقام القديمة' : 'Nettoyer la classe'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportModalOpen(true)}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{language === 'ar' ? 'استيراد الأسماء الصحيحة' : 'Réimporter'}</span>
             </button>
           </div>
         </div>
@@ -541,7 +652,20 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       {/* Liste / Tableau des élèves */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-6 py-3.5 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
-          <span>{filteredStudents.length} élève{filteredStudents.length > 1 ? 's' : ''} trouvé{filteredStudents.length > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-3">
+            <span>{filteredStudents.length} élève{filteredStudents.length > 1 ? 's' : ''} trouvé{filteredStudents.length > 1 ? 's' : ''}</span>
+            {selectedClassId !== 'all' && filteredStudents.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearCurrentClass}
+                className="text-rose-600 hover:text-rose-700 hover:underline text-[11px] font-bold normal-case cursor-pointer flex items-center gap-1"
+                title="Supprimer tous les élèves de cette classe"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>{language === 'ar' ? 'إفراغ هذا القسم' : 'Vider cette classe'}</span>
+              </button>
+            )}
+          </div>
           <span>Année scolaire en cours</span>
         </div>
 
@@ -567,7 +691,29 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       title="Sélectionner tous les élèves affichés"
                     />
                   </th>
-                  <th className="py-3.5 px-4">Élève</th>
+                  <th className="py-2 px-4">
+                    {selectedStudentIds.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleBulkDelete}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md cursor-pointer transition shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>
+                            {language === 'ar'
+                              ? `🗑️ حذف الكل (${selectedStudentIds.length})`
+                              : `🗑️ Supprimer tout (${selectedStudentIds.length})`}
+                          </span>
+                        </button>
+                        <span className="text-[11px] text-slate-500 font-normal normal-case hidden sm:inline">
+                          {language === 'ar' ? 'تلميذ محدد' : 'élèves sélectionnés'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span>{language === 'ar' ? 'التلميذ' : 'Élève'}</span>
+                    )}
+                  </th>
                   <th className="py-3.5 px-4">Classe & Groupe TD</th>
                   <th className="py-3.5 px-4">Moyenne</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">Contact Parents</th>
@@ -614,13 +760,23 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                           <div>
                             <span
                               onClick={() => setDetailStudent(student)}
-                              className="font-bold text-slate-900 group-hover:text-indigo-600 cursor-pointer block"
+                              className="font-extrabold text-slate-900 group-hover:text-indigo-600 cursor-pointer block text-sm"
                             >
-                              {student.lastName.toUpperCase()} {student.firstName}
+                              {student.lastName} {student.firstName}
                             </span>
-                            <span className="text-xs text-slate-400 block truncate max-w-xs">
-                              {student.studentEmail || `Genre : ${student.gender}`}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                              {student.registrationNumber && (
+                                <span className="font-mono bg-indigo-50 text-indigo-800 border border-indigo-200 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                  {language === 'ar' ? `رقم التسجيل: ${student.registrationNumber}` : `N° ${student.registrationNumber}`}
+                                </span>
+                              )}
+                              <span>• {student.gender === 'F' ? 'أنثى' : 'ذكر'}</span>
+                              {student.nationalId && (
+                                <span className="font-mono text-slate-400 text-[10px] hidden lg:inline">
+                                  • NIN: {student.nationalId}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1154,6 +1310,28 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   )}
                 </div>
               )}
+
+              {/* Option de remplacement pour nettoyer les anciens numéros */}
+              <label className="flex items-start gap-2.5 p-3 bg-amber-50/80 border border-amber-200 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={replaceClassOnImport}
+                  onChange={(e) => setReplaceClassOnImport(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer mt-0.5"
+                />
+                <div>
+                  <span className="text-xs font-bold text-amber-950 block">
+                    {language === 'ar'
+                      ? 'مسح واستبدال التلاميذ السابقين بهذا القسم (موصى به لتفادي التكرار والأرقام القديمة)'
+                      : 'Remplacer les anciens élèves de cette classe (recommandé pour effacer les anciens numéros)'}
+                  </span>
+                  <span className="text-[11px] text-amber-800 block mt-0.5">
+                    {language === 'ar'
+                      ? 'سيتم حذف القائمة القديمة المعيبة ووضع هؤلاء التلاميذ الجدد بأسمائهم الرسمية.'
+                      : 'Les élèves actuels de cette classe seront effacés et remplacés par cette nouvelle liste.'}
+                  </span>
+                </div>
+              </label>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
