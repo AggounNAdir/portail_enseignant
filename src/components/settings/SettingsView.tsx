@@ -47,6 +47,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [importStatus, setImportStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleForceUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.update();
+        }
+      }
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+      setTimeout(() => {
+        window.location.reload();
+      }, 600);
+    } catch (err) {
+      console.error('Update error:', err);
+      window.location.reload();
+    }
+  };
 
   const handleSubmitProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,6 +184,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span className="text-xs text-slate-500 block mt-0.5">Interface en français</span>
             </div>
             {language === 'fr' && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Carte Mise à jour de l'application sur Téléphone */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                {language === 'ar' ? 'تحديث التطبيق على الهاتف' : "Mise à jour de l'application sur téléphone"}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {language === 'ar' ? 'تثبيت أحدث الإصدارات والمميزات الجديدة فوراً' : 'Téléchargez immédiatement les dernières fonctionnalités (Langues, Groupes TD, etc.)'}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
+            v2.4 (Algérie CEM & TD)
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+            <p className="font-bold text-slate-900">
+              {language === 'ar' ? '📱 كيفية التحديث على هاتفك (أندرويد / آيفون) :' : '📱 Comment mettre à jour sur votre smartphone :'}
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-600">
+              <li>
+                <strong>{language === 'ar' ? 'الطريقة 1 (المباشرة والأسرع) :' : 'Méthode 1 (Directe & Rapide) :'}</strong>{' '}
+                {language === 'ar'
+                  ? 'اضغط على الزر الأخضر بالأسفل «تحديث التطبيق الآن»، سيقوم التطبيق بمسح الملفات القديمة وتحميل التحديث فوراً.'
+                  : 'Cliquez sur le bouton vert ci-dessous « Mettre à jour l’application maintenant ». Le cache sera vidé et l’app rechargera la dernière version.'}
+              </li>
+              <li>
+                <strong>{language === 'ar' ? 'الطريقة 2 (إعادة فتح التطبيق) :' : 'Méthode 2 (Redémarrage de l’app) :'}</strong>{' '}
+                {language === 'ar'
+                  ? 'أغلق التطبيق تماماً (اسحبه للأعلى من قائمة التطبيقات المفتوحة في هاتفك)، ثم أعد تشغيله وأنت متصل بالإنترنت.'
+                  : 'Fermez complètement l’application (glisser vers le haut dans le multitâche de votre téléphone) puis rouvrez-la avec une connexion Internet.'}
+              </li>
+              <li>
+                <strong>{language === 'ar' ? 'الطريقة 3 (سحب الشاشة) :' : 'Méthode 3 (Glisser vers le bas) :'}</strong>{' '}
+                {language === 'ar'
+                  ? 'اسحب الشاشة بيدك من الأعلى إلى الأسفل لتنشيط الصفحة (Pull-to-refresh).'
+                  : 'Glissez votre doigt du haut vers le bas sur l’écran pour actualiser (Pull-to-refresh).'}
+              </li>
+            </ul>
+
+            <div className="pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[11px] text-emerald-800 font-semibold">
+              <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+              <span>
+                {language === 'ar'
+                  ? '🔒 أمان تام: التحديث لا يحذف إطلاقاً بياناتك ولا علامات التلاميذ المخزنة في هاتفك.'
+                  : '🔒 Vos données, classes et notes sont 100% conservées en mémoire et ne sont jamais effacées.'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleForceUpdate}
+            disabled={isUpdating}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition cursor-pointer"
+          >
+            <Sparkles className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+            <span>
+              {isUpdating
+                ? (language === 'ar' ? 'جاري تثبيت التحديث...' : 'Téléchargement de la mise à jour...')
+                : (language === 'ar' ? '🔄 تحديث التطبيق الآن (تحميل أحدث إصدار)' : '🔄 Mettre à jour l’application maintenant')}
+            </span>
           </button>
         </div>
       </div>
