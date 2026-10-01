@@ -47,6 +47,10 @@ export interface Student {
   address?: string;
   observations?: string;
   group?: '1' | '2'; // الفوج 1 أو الفوج 2 للأعمال الموجهة TD والتطبيقية TP
+  nationalId?: string; // رقم التعريف الوطني المدرسي (NIN)
+  registrationNumber?: string; // رقم التسجيل
+  isRepeating?: boolean; // الإعادة (نعم / لا)
+  boardingStatus?: string; // الصفة (ن.داخلي / خارجي / داخلي)
   createdAt: string;
 }
 

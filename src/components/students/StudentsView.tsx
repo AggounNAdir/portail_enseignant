@@ -84,6 +84,8 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
   // State pour l'import CSV
   const [csvFileContent, setCsvFileContent] = useState<string>('');
+  const [pasteMode, setPasteMode] = useState<boolean>(false);
+  const [pastedCSV, setPastedCSV] = useState<string>('');
   const [importTargetClassId, setImportTargetClassId] = useState<string>(
     selectedClassId !== 'all' ? selectedClassId : classes[0]?.id || ''
   );
@@ -277,19 +279,20 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     document.body.removeChild(link);
   };
 
-  // Télécharger modèle CSV
+  // Télécharger modèle CSV (compatible Algérie CEM et format standard)
   const handleDownloadTemplateCSV = () => {
     const templateContent = [
-      'Nom;Prénom;Classe;Date de Naissance;Genre;Email Élève;Téléphone Parents;Email Parents;Adresse;Observations',
-      'Dupont;Jean;3ème B;2010-05-14;M;jean.dupont@eleve.fr;06 11 22 33 44;parents.dupont@gmail.com;12 Rue de la Paix, 75000 Paris;Très bon travail',
-      'Martin;Sophie;3ème B;2010-09-22;F;sophie.martin@eleve.fr;06 22 33 44 55;famille.martin@orange.fr;5 Avenue Victor Hugo, 75000 Paris;Élève studieuse',
+      'الترتيب,رقم التعريف,رقم التسجيل,اللقب,الاسم,الجنس,تاريخ الميلاد,الإعادة,الصفة,السن,الملاحظات',
+      '1,1101315011146700,325,أحنوش,تزيري,أنثى,2013-10-31,لا,ن.داخلي,12,',
+      '2,1001315010226400,327,أستيت,سيفاكس,ذكر,2013-03-17,لا,ن.داخلي,13,',
+      '3,1001215040012614,148,الجنادي,وليد,ذكر,2012-01-22,نعم,ن.داخلي,14,',
     ].join('\n');
 
     const blob = new Blob(['\uFEFF' + templateContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'modele_import_eleves_profpilot.csv');
+    link.setAttribute('download', 'modele_import_eleves_algerie_cem.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -304,10 +307,22 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     reader.onload = (event) => {
       const text = event.target?.result as string;
       setCsvFileContent(text);
+      setPastedCSV(text);
       const parsed = parseStudentsCSV(text, importTargetClassId);
       setImportResult(parsed);
     };
     reader.readAsText(file);
+  };
+
+  const handlePasteChange = (text: string) => {
+    setPastedCSV(text);
+    setCsvFileContent(text);
+    if (text.trim().length > 10) {
+      const parsed = parseStudentsCSV(text, importTargetClassId);
+      setImportResult(parsed);
+    } else {
+      setImportResult(null);
+    }
   };
 
   const handleConfirmImport = () => {
@@ -316,6 +331,12 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
       setImportModalOpen(false);
       setImportResult(null);
       setCsvFileContent('');
+      setPastedCSV('');
+      alert(
+        language === 'ar'
+          ? `تم استيراد ${importResult.success.length} تلميذ بنجاح إلى القسم المحدد!`
+          : `${importResult.success.length} élève(s) importé(s) avec succès !`
+      );
     }
   };
 
@@ -982,10 +1003,10 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Classe de destination
+                  {language === 'ar' ? 'القسم المستهدف لاستيراد التلاميذ *' : 'Classe de destination *'}
                 </label>
                 <select
                   value={importTargetClassId}
@@ -995,7 +1016,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       setImportResult(parseStudentsCSV(csvFileContent, e.target.value));
                     }
                   }}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold"
                 >
                   {classes.map((cls) => (
                     <option key={cls.id} value={cls.id}>
@@ -1005,48 +1026,89 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                 </select>
               </div>
 
-              {/* Télécharger modèle */}
-              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-indigo-900">Besoin d'un modèle type ?</p>
-                  <p className="text-[11px] text-indigo-700">Téléchargez le format CSV standard compatible Excel.</p>
-                </div>
+              {/* Onglets Choix méthode : Fichier ou Coller texte */}
+              <div className="flex p-1 bg-slate-100 rounded-xl">
                 <button
                   type="button"
-                  onClick={handleDownloadTemplateCSV}
-                  className="px-3 py-1.5 bg-white text-indigo-700 text-xs font-bold rounded-lg border border-indigo-300 hover:bg-indigo-50 shadow-2xs cursor-pointer"
+                  onClick={() => setPasteMode(false)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    !pasteMode ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
-                  Télécharger Modèle
+                  {language === 'ar' ? '📁 اختيار ملف CSV' : '📁 Importer un fichier CSV'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPasteMode(true)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    pasteMode ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {language === 'ar' ? '📋 نسخ ولصق النص مباشرة' : '📋 Coller le texte CSV'}
                 </button>
               </div>
 
-              {/* Sélecteur de fichier */}
-              <div className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 text-center transition">
-                <FileSpreadsheet className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                <label className="cursor-pointer block">
-                  <span className="text-sm font-bold text-indigo-600 hover:underline">
-                    Cliquez pour choisir un fichier CSV
-                  </span>
-                  <span className="text-xs text-slate-500 block mt-1">
-                    Prend en charge séparateurs virgule (,) ou point-virgule (;)
-                  </span>
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
+              {!pasteMode ? (
+                /* Sélecteur de fichier */
+                <div className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-5 text-center transition bg-slate-50/50">
+                  <FileSpreadsheet className="w-9 h-9 text-indigo-500 mx-auto mb-2" />
+                  <label className="cursor-pointer block">
+                    <span className="text-xs sm:text-sm font-bold text-indigo-600 hover:underline">
+                      {language === 'ar' ? 'اضغط لاختيار ملف من هاتفك أو حاسوبك' : 'Cliquez pour choisir un fichier CSV'}
+                    </span>
+                    <span className="text-[11px] text-slate-400 block mt-1">
+                      {language === 'ar'
+                        ? 'متوافق 100% مع ملفات منصة الرقمنة لوزارة التربية الوطنية (الترتيب، اللقب، الاسم...)'
+                        : 'Compatible avec les exports du ministère (الترتيب، اللقب، الاسم...) et formats standards'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".csv,text/csv,text/plain"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              ) : (
+                /* Zone de texte pour coller */
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    {language === 'ar'
+                      ? 'الصق أسطر التلاميذ هنا (من إكسل أو ملف نصي) :'
+                      : 'Collez directement le texte CSV ici :'}
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={pastedCSV}
+                    onChange={(e) => handlePasteChange(e.target.value)}
+                    placeholder="الترتيب,رقم التعريف,رقم التسجيل,اللقب,الاسم,الجنس,تاريخ الميلاد,الإعادة,الصفة..."
+                    className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
-                </label>
-              </div>
+                  <p className="text-[11px] text-slate-400">
+                    {language === 'ar'
+                      ? 'سيتم التعرف على الأعمدة وتقسيم التلاميذ تلقائياً.'
+                      : 'Les colonnes ministérielles algériennes sont détectées automatiquement.'}
+                  </p>
+                </div>
+              )}
 
               {/* Aperçu du parsing */}
               {importResult && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    <span className="text-emerald-800">
-                      {importResult.success.length} élève(s) détecté(s) avec succès
-                    </span>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        {language === 'ar'
+                          ? `تم التعرف على ${importResult.success.length} تلميذ بنجاح`
+                          : `${importResult.success.length} élève(s) détecté(s) avec succès`}
+                      </span>
+                    </div>
+                    {importResult.success[0]?.nationalId && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-200/60 text-emerald-900 font-bold">
+                        🇩🇿 نظام الرقمنة الجزائري
+                      </span>
+                    )}
                   </div>
 
                   {importResult.errors.length > 0 && (
@@ -1061,13 +1123,31 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   )}
 
                   {importResult.success.length > 0 && (
-                    <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs">
+                    <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs bg-white shadow-2xs">
                       {importResult.success.map((s, idx) => (
-                        <div key={idx} className="p-2 flex items-center justify-between">
-                          <span className="font-semibold text-slate-800">
-                            {s.lastName.toUpperCase()} {s.firstName}
-                          </span>
-                          <span className="text-slate-400">{s.parentPhone}</span>
+                        <div key={idx} className="p-2.5 flex items-center justify-between hover:bg-slate-50 transition gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-slate-900 block truncate">
+                                {s.lastName} {s.firstName}
+                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                                <span>{s.gender === 'F' ? 'أنثى' : 'ذكر'}</span>
+                                <span>• {s.birthDate}</span>
+                                {s.boardingStatus && <span className="text-amber-700 font-medium">• {s.boardingStatus}</span>}
+                                {s.nationalId && <span className="font-mono text-indigo-600 font-semibold">• NIN: {s.nationalId}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {s.isRepeating && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                              معيد
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>

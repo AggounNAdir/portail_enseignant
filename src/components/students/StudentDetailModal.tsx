@@ -83,6 +83,16 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                 }`}>
                   {student.group === '2' ? 'الفوج 2 (Groupe 2 - TD)' : 'الفوج 1 (Groupe 1 - TD)'}
                 </span>
+                {student.boardingStatus && (
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/30 text-amber-200 border border-amber-400/30 backdrop-blur-md">
+                    الصفة: {student.boardingStatus}
+                  </span>
+                )}
+                {student.isRepeating && (
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/30 text-rose-200 border border-rose-400/30 backdrop-blur-md">
+                    معيد السنة
+                  </span>
+                )}
               </div>
               <h2 className="text-2xl font-black tracking-tight">
                 {student.lastName.toUpperCase()} {student.firstName}
@@ -174,6 +184,43 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Identifiants scolaires officiels (Algérie) */}
+          {(student.nationalId || student.registrationNumber || student.boardingStatus) && (
+            <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+              <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider mb-2">
+                بيانات التمدرس الرسمية (وزارة التربية الوطنية)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {student.nationalId && (
+                  <div className="text-slate-700">
+                    <span className="text-slate-400 block text-[10px]">رقم التعريف الوطني (NIN) :</span>
+                    <strong className="font-mono text-indigo-900 font-bold">{student.nationalId}</strong>
+                  </div>
+                )}
+                {student.registrationNumber && (
+                  <div className="text-slate-700">
+                    <span className="text-slate-400 block text-[10px]">رقم التسجيل المدرسي :</span>
+                    <strong className="text-indigo-900 font-bold">{student.registrationNumber}</strong>
+                  </div>
+                )}
+                {student.boardingStatus && (
+                  <div className="text-slate-700">
+                    <span className="text-slate-400 block text-[10px]">الصفة (الوضعية) :</span>
+                    <strong className="text-slate-900 font-bold">{student.boardingStatus}</strong>
+                  </div>
+                )}
+                {student.isRepeating !== undefined && (
+                  <div className="text-slate-700">
+                    <span className="text-slate-400 block text-[10px]">وضعية الإعادة :</span>
+                    <strong className={student.isRepeating ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {student.isRepeating ? 'معيد(ة) للسنة' : 'متمدرس(ة) عادي (غير معيد)'}
+                    </strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Observations pédagogiques */}
           {student.observations && (

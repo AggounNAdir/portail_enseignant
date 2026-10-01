@@ -432,17 +432,21 @@ export function exportStudentsToCSV(students: Student[], classroom?: Classroom):
 
 /**
  * Parse un fichier CSV importé pour créer des élèves
+ * Compatible avec les exports officiels de la plateforme du Ministère de l'Éducation Nationale (Algérie)
+ * ainsi que les formats CSV français et internationaux standards.
  */
 export function parseStudentsCSV(
   csvText: string,
   targetClassId: string
 ): { success: Student[]; errors: string[] } {
-  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  // Nettoyer les caractères BOM UTF-8 éventuels
+  const cleanText = csvText.replace(/^\uFEFF/, '').trim();
+  const lines = cleanText.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const success: Student[] = [];
   const errors: string[] = [];
 
   if (lines.length < 2) {
-    errors.push('Le fichier CSV est vide ou ne contient pas d’en-tête.');
+    errors.push('Le fichier CSV est vide ou ne contient pas de données après l’en-tête.');
     return { success, errors };
   }
 
@@ -450,47 +454,185 @@ export function parseStudentsCSV(
   const firstLine = lines[0];
   const separator = firstLine.includes(';') ? ';' : ',';
 
-  // Parser les lignes suivantes
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+  // Fonction helper pour découper une ligne CSV avec gestion des guillemets
+  const splitCSVLine = (lineStr: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
 
-    // Découpage simple prenant en compte les guillemets
-    const regex = new RegExp(`(?:^|${separator})(\"(?:[^\"]+|\"\")*\"|[^${separator}]*)`, 'g');
-    const cols: string[] = [];
-    let match;
-    while ((match = regex.exec(line)) !== null) {
-      let val = match[1].trim();
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.substring(1, val.length - 1).replace(/""/g, '"');
+    for (let c = 0; c < lineStr.length; c++) {
+      const char = lineStr[c];
+      if (char === '"') {
+        if (inQuotes && lineStr[c + 1] === '"') {
+          current += '"';
+          c++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === separator && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
       }
-      cols.push(val);
-      if (regex.lastIndex === match.index) regex.lastIndex++;
     }
+    result.push(current.trim());
+    return result;
+  };
 
-    if (cols.length < 2) {
-      errors.push(`Ligne ${i + 1} invalide (au moins Nom et Prénom requis).`);
+  // Analyser l'en-tête pour cartographier intelligemment les colonnes
+  const headerCols = splitCSVLine(firstLine).map((h) => h.toLowerCase().trim());
+
+  let lastNameIdx = -1;
+  let firstNameIdx = -1;
+  let birthDateIdx = -1;
+  let genderIdx = -1;
+  let nationalIdIdx = -1; // رقم التعريف الوطني (NIN)
+  let regNumberIdx = -1; // رقم التسجيل
+  let repeatingIdx = -1; // الإعادة
+  let boardingIdx = -1; // الصفة (ن.داخلي / خارجي)
+  let obsIdx = -1; // الملاحظات
+  let phoneIdx = -1;
+  let emailIdx = -1;
+  let addressIdx = -1;
+  let groupIdx = -1;
+
+  headerCols.forEach((col, idx) => {
+    if (col.includes('اللقب') || col === 'nom' || col.includes('last') || col === 'nom de famille') {
+      lastNameIdx = idx;
+    } else if (col.includes('الاسم') || col === 'prenom' || col.includes('first') || col === 'prénom') {
+      firstNameIdx = idx;
+    } else if (col.includes('تاريخ الميلاد') || col.includes('naissance') || col.includes('birth') || col.includes('date')) {
+      birthDateIdx = idx;
+    } else if (col.includes('الجنس') || col.includes('genre') || col.includes('sexe') || col.includes('gender')) {
+      genderIdx = idx;
+    } else if (col.includes('التعريف') || col.includes('nin') || col.includes('national')) {
+      nationalIdIdx = idx;
+    } else if (col.includes('التسجيل') || col.includes('matricule') || col.includes('inscription')) {
+      regNumberIdx = idx;
+    } else if (col.includes('الإعادة') || col.includes('اعادة') || col.includes('redoubl')) {
+      repeatingIdx = idx;
+    } else if (col.includes('الصفة') || col.includes('regime') || col.includes('statut')) {
+      boardingIdx = idx;
+    } else if (col.includes('الملاحظات') || col.includes('ملاحظ') || col.includes('obs') || col.includes('remarque')) {
+      obsIdx = idx;
+    } else if (col.includes('هاتف') || col.includes('phone') || col.includes('tel')) {
+      phoneIdx = idx;
+    } else if (col.includes('البريد') || col.includes('email') || col.includes('mail')) {
+      emailIdx = idx;
+    } else if (col.includes('العنوان') || col.includes('adresse') || col.includes('address')) {
+      addressIdx = idx;
+    } else if (col.includes('الفوج') || col.includes('groupe') || col.includes('group')) {
+      groupIdx = idx;
+    }
+  });
+
+  // Fallback si l'en-tête n'est pas standard :
+  // Détection du format ministériel algérien classique (الترتيب, رقم التعريف, رقم التسجيل, اللقب, الاسم...)
+  if (lastNameIdx === -1 && firstNameIdx === -1) {
+    if (headerCols.length >= 7) {
+      nationalIdIdx = 1;
+      regNumberIdx = 2;
+      lastNameIdx = 3;
+      firstNameIdx = 4;
+      genderIdx = 5;
+      birthDateIdx = 6;
+      repeatingIdx = 7;
+      boardingIdx = 8;
+      obsIdx = 10;
+    } else {
+      lastNameIdx = 0;
+      firstNameIdx = 1;
+      birthDateIdx = 2;
+      genderIdx = 3;
+    }
+  }
+
+  // Parser chaque ligne d'élève
+  for (let i = 1; i < lines.length; i++) {
+    const rawLine = lines[i].trim();
+    if (!rawLine) continue;
+
+    const cols = splitCSVLine(rawLine);
+    if (cols.length < 2) continue;
+
+    const lastName = (lastNameIdx !== -1 ? cols[lastNameIdx] : cols[0])?.trim() || '';
+    const firstName = (firstNameIdx !== -1 ? cols[firstNameIdx] : cols[1])?.trim() || '';
+
+    if (!lastName && !firstName) {
       continue;
     }
 
-    const lastName = cols[0]?.trim();
-    const firstName = cols[1]?.trim();
-
-    if (!lastName || !firstName) {
-      errors.push(`Ligne ${i + 1} : Nom ou Prénom manquant.`);
-      continue;
+    // Extraction du Genre (ذكر / أنثى ou M / F)
+    let gender: 'M' | 'F' | 'Autre' = 'M';
+    if (genderIdx !== -1 && cols[genderIdx]) {
+      const gRaw = cols[genderIdx].toLowerCase().trim();
+      if (gRaw.includes('أنثى') || gRaw.startsWith('f') || gRaw.includes('fem') || gRaw.includes('fille')) {
+        gender = 'F';
+      } else if (gRaw.includes('ذكر') || gRaw.startsWith('m') || gRaw.includes('masc') || gRaw.includes('garcon')) {
+        gender = 'M';
+      }
     }
 
-    const birthDate = cols[3] && !isNaN(Date.parse(cols[3])) ? cols[3] : '2010-01-01';
-    const gender = (cols[4]?.trim().toUpperCase() === 'F' ? 'F' : 'M') as 'M' | 'F' | 'Autre';
-    const studentEmail = cols[5]?.trim() || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@eleve.fr`;
-    const parentPhone = cols[6]?.trim() || '06 00 00 00 00';
-    const parentEmail = cols[7]?.trim() || '';
-    const address = cols[8]?.trim() || '';
-    const observations = cols[9]?.trim() || 'Importé via CSV';
+    // Extraction et normalisation de la Date de Naissance
+    let birthDate = '2013-01-01';
+    if (birthDateIdx !== -1 && cols[birthDateIdx]) {
+      const rawDate = cols[birthDateIdx].trim();
+      // Format YYYY-MM-DD
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(rawDate)) {
+        birthDate = rawDate;
+      }
+      // Format DD/MM/YYYY ou DD-MM-YYYY
+      else if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(rawDate)) {
+        const parts = rawDate.split(/[\/\-]/);
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        birthDate = `${year}-${month}-${day}`;
+      } else if (!isNaN(Date.parse(rawDate))) {
+        birthDate = new Date(rawDate).toISOString().split('T')[0];
+      }
+    }
+
+    // Champs officiels algériens
+    const nationalId = nationalIdIdx !== -1 ? cols[nationalIdIdx]?.trim() : undefined;
+    const registrationNumber = regNumberIdx !== -1 ? cols[regNumberIdx]?.trim() : undefined;
+
+    // Redoublant (الإعادة)
+    let isRepeating: boolean | undefined = undefined;
+    if (repeatingIdx !== -1 && cols[repeatingIdx]) {
+      const rRaw = cols[repeatingIdx].trim();
+      isRepeating = rRaw.includes('نعم') || rRaw.toLowerCase() === 'oui' || rRaw === '1';
+    }
+
+    // Régime / Statut (الصفة)
+    const boardingStatus = boardingIdx !== -1 ? cols[boardingIdx]?.trim() : undefined;
+
+    // Observations
+    let observations = obsIdx !== -1 ? cols[obsIdx]?.trim() : '';
+    if (!observations) {
+      const details: string[] = [];
+      if (boardingStatus) details.push(`الصفة: ${boardingStatus}`);
+      if (isRepeating) details.push('معيد');
+      if (registrationNumber) details.push(`رقم التسجيل: ${registrationNumber}`);
+      observations = details.join(' • ');
+    }
+
+    // Contact
+    const parentPhone = phoneIdx !== -1 && cols[phoneIdx] ? cols[phoneIdx].trim() : '';
+    const parentEmail = emailIdx !== -1 && cols[emailIdx] ? cols[emailIdx].trim() : '';
+    const studentEmail = emailIdx !== -1 && cols[emailIdx] ? cols[emailIdx].trim() : '';
+    const address = addressIdx !== -1 && cols[addressIdx] ? cols[addressIdx].trim() : '';
+
+    // Groupe TD (si spécifié dans le fichier ou par défaut '1')
+    let group: '1' | '2' = '1';
+    if (groupIdx !== -1 && cols[groupIdx]) {
+      const gStr = cols[groupIdx].trim();
+      if (gStr === '2' || gStr.includes('2')) group = '2';
+    }
 
     success.push({
-      id: `std-imp-${Date.now()}-${i}`,
+      id: `std-imp-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
       classId: targetClassId,
       lastName,
       firstName,
@@ -501,8 +643,17 @@ export function parseStudentsCSV(
       parentEmail,
       address,
       observations,
+      group,
+      nationalId,
+      registrationNumber,
+      isRepeating,
+      boardingStatus,
       createdAt: new Date().toISOString().split('T')[0],
     });
+  }
+
+  if (success.length === 0) {
+    errors.push('Aucun élève valide n’a pu être extrait du fichier. Vérifiez les colonnes.');
   }
 
   return { success, errors };
