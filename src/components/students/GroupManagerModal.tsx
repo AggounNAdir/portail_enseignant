@@ -86,16 +86,16 @@ export const GroupManagerModal: React.FC<GroupManagerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-100 my-6 flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-6 py-5 bg-linear-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between">
+    <div className="modal-safe-overlay">
+      <div className="relative bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-100 my-0 flex flex-col max-h-[calc(100dvh-6rem)] animate-fade-in">
+        {/* Header fixe - Protégé contre la barre de notification */}
+        <div className="sticky top-0 z-20 px-6 py-4 sm:py-5 bg-linear-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between shrink-0 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-indigo-300">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-indigo-300 shrink-0">
               <ArrowLeftRight className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">
+              <h2 className="text-base sm:text-lg font-black tracking-tight">
                 {language === 'ar'
                   ? `توزيع وتحديد أفواج الأعمال الموجهة (TD/TP) — ${classroom?.name || ''}`
                   : `Répartition manuelle des Groupes TD / TP — ${classroom?.name || ''}`}
@@ -109,8 +109,10 @@ export const GroupManagerModal: React.FC<GroupManagerModalProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+            className="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer shrink-0"
+            title="Fermer"
           >
             <X className="w-5 h-5" />
           </button>

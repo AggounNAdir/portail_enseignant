@@ -46,13 +46,15 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
   const attendance = calculateStudentAttendance(student.id, attendanceRecords);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-100 my-8">
+    <div className="modal-safe-overlay">
+      <div className="relative bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-100 my-0 flex flex-col max-h-[calc(100dvh-6rem)] animate-fade-in">
         {/* Header avec avatar & identité */}
-        <div className="relative bg-linear-to-r from-slate-900 to-indigo-950 p-6 text-white">
+        <div className="sticky top-0 z-20 bg-linear-to-r from-slate-900 to-indigo-950 p-5 sm:p-6 text-white shrink-0 shadow-2xs">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-slate-300 hover:text-white rounded-full hover:bg-white/10 transition"
+            className="absolute top-4 right-4 p-2 text-slate-300 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+            title="Fermer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -105,7 +107,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         </div>
 
         {/* Corps de la modale */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Métriques élève */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">

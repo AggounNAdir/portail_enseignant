@@ -849,21 +849,22 @@ export const GradesView: React.FC<GradesViewProps> = ({
 
       {/* Modal Devoir (Création / Modification) */}
       {assessmentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="modal-safe-overlay">
+          <div className="relative bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[calc(100dvh-6rem)] my-0 animate-fade-in">
+            <div className="sticky top-0 bg-white z-20 flex items-center justify-between px-6 py-4 border-b border-slate-100 shadow-2xs shrink-0">
               <h3 className="font-bold text-lg text-slate-900">
                 {editingAssessment ? "Modifier l'évaluation" : 'Créer une nouvelle évaluation'}
               </h3>
               <button
+                type="button"
                 onClick={() => setAssessmentModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAssessmentSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleAssessmentSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Intitulé du devoir *
@@ -976,17 +977,17 @@ export const GradesView: React.FC<GradesViewProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="sticky bottom-0 bg-white z-20 flex items-center justify-end gap-3 pt-3 pb-1 border-t border-slate-100 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setAssessmentModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition cursor-pointer"
                 >
                   {editingAssessment ? 'Enregistrer' : 'Créer le devoir'}
                 </button>

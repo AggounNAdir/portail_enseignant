@@ -727,47 +727,55 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
       {/* Modal Ajout / Modification Élève */}
       {addEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden border border-slate-100 my-8">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-900">
-                {editingStudent ? "Modifier l'élève" : 'Ajouter un nouvel élève'}
-              </h3>
+        <div className="modal-safe-overlay">
+          <div className="relative bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[calc(100dvh-6rem)] my-0 animate-fade-in">
+            {/* Header fixe - Ne passe JAMAIS sous la barre de notification */}
+            <div className="sticky top-0 bg-white z-20 flex items-center justify-between px-6 py-4 border-b border-slate-100 shadow-2xs shrink-0">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">
+                  {editingStudent ? (language === 'ar' ? 'تعديل بيانات التلميذ' : "Modifier l'élève") : (language === 'ar' ? 'إضافة تلميذ جديد' : 'Ajouter un nouvel élève')}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {language === 'ar' ? 'المعلومات الشخصية، الفوج وبيانات الاتصال' : 'Informations scolaires, groupe TD et contact'}
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => setAddEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                title="Fermer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Nom de famille *
+                    {language === 'ar' ? 'اللقب (Nom) *' : 'Nom de famille *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Moreau"
+                    placeholder={language === 'ar' ? 'مثال: بن علي' : 'Ex: Moreau'}
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-semibold"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Prénom *
+                    {language === 'ar' ? 'الاسم (Prénom) *' : 'Prénom *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Lucas"
+                    placeholder={language === 'ar' ? 'مثال: محمد' : 'Ex: Lucas'}
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-semibold"
                   />
                 </div>
               </div>
@@ -934,19 +942,21 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="sticky bottom-0 bg-white z-20 flex items-center justify-end gap-3 pt-3 pb-1 border-t border-slate-100 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setAddEditModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
-                  Annuler
+                  {language === 'ar' ? 'إلغاء' : 'Annuler'}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition cursor-pointer"
                 >
-                  {editingStudent ? 'Sauvegarder' : 'Ajouter l’élève'}
+                  {editingStudent
+                    ? (language === 'ar' ? 'حفظ التعديلات' : 'Sauvegarder')
+                    : (language === 'ar' ? 'إضافة التلميذ' : 'Ajouter l’élève')}
                 </button>
               </div>
             </form>
@@ -956,22 +966,23 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
       {/* Modal Import CSV */}
       {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="modal-safe-overlay">
+          <div className="relative bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[calc(100dvh-6rem)] my-0 animate-fade-in">
+            <div className="sticky top-0 bg-white z-20 flex items-center justify-between px-6 py-4 border-b border-slate-100 shadow-2xs shrink-0">
               <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
                 <Upload className="w-5 h-5 text-indigo-600" />
                 <span>Importer une liste d'élèves (CSV)</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setImportModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Classe de destination
