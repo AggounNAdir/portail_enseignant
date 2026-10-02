@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Teacher,
   Classroom,
@@ -32,6 +32,14 @@ import {
   isUserAuthenticated,
   setAuthenticated
 } from './services/storage';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import {
+  auth,
+  pushWorkspaceToCloud,
+  listenToCloudWorkspace,
+  fetchInitialCloudWorkspace,
+  CloudWorkspacePayload
+} from './services/firebase';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -43,6 +51,8 @@ import { ReportCardsView } from './components/reports/ReportCardsView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { AuthModal } from './components/auth/AuthModal';
+import { CloudSyncModal } from './components/sync/CloudSyncModal';
+import { InstallPcModal } from './components/install/InstallPcModal';
 
 export default function App() {
   // Initialisation du stockage au premier montage
@@ -59,6 +69,35 @@ export default function App() {
   const [sessions, setSessions] = useState<AttendanceSession[]>(getStoredAttendanceSessions);
   const [records, setRecords] = useState<AttendanceRecord[]>(getStoredAttendanceRecords);
 
+  // Cloud Sync Temps Réel
+  const [cloudUser, setCloudUser] = useState<User | null>(null);
+  const [cloudSyncModalOpen, setCloudSyncModalOpen] = useState(false);
+  const isRemoteSyncRef = useRef(false);
+
+  // Installation sur PC
+  const [installPcModalOpen, setInstallPcModalOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  // Écouter l'événement d'installation PWA native
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleTriggerInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setInstallPcModalOpen(false);
+    }
+  };
+
   // Navigation & Sélections
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
@@ -68,6 +107,102 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+
+  // Connexion initiale Firebase Auth et synchronisation Cloud bidirectionnelle
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      setCloudUser(user);
+      if (user) {
+        try {
+          const cloudData = await fetchInitialCloudWorkspace(user.uid);
+          if (cloudData && (cloudData.classes.length > 0 || cloudData.students.length > 0)) {
+            // Mettre à jour l'état local depuis le Cloud
+            isRemoteSyncRef.current = true;
+            if (cloudData.teacher) {
+              setTeacher(cloudData.teacher);
+              saveTeacher(cloudData.teacher);
+            }
+            setClasses(cloudData.classes);
+            saveClasses(cloudData.classes);
+            setStudents(cloudData.students);
+            saveStudents(cloudData.students);
+            setAssessments(cloudData.assessments || []);
+            saveAssessments(cloudData.assessments || []);
+            setGrades(cloudData.grades || []);
+            saveGrades(cloudData.grades || []);
+            setSessions(cloudData.attendanceSessions || []);
+            saveAttendanceSessions(cloudData.attendanceSessions || []);
+            setRecords(cloudData.attendanceRecords || []);
+            saveAttendanceRecords(cloudData.attendanceRecords || []);
+
+            setTimeout(() => {
+              isRemoteSyncRef.current = false;
+            }, 600);
+          } else {
+            // Si le Cloud était vierge, pousser les données locales déjà existantes
+            pushWorkspaceToCloud(user.uid, {
+              teacher,
+              classes,
+              students,
+              assessments,
+              grades,
+              attendanceSessions: sessions,
+              attendanceRecords: records,
+            });
+          }
+        } catch (e) {
+          console.error("Erreur sync initiale:", e);
+        }
+      }
+    });
+
+    return () => unsubAuth();
+  }, []);
+
+  // Écouteur temps réel (onSnapshot) : dès que l'autre appareil modifie quelque chose, on l'applique ici !
+  useEffect(() => {
+    if (!cloudUser) return;
+
+    const unsubListener = listenToCloudWorkspace(cloudUser.uid, (remote) => {
+      isRemoteSyncRef.current = true;
+      if (remote.teacher) {
+        setTeacher(remote.teacher);
+        saveTeacher(remote.teacher);
+      }
+      setClasses(remote.classes);
+      saveClasses(remote.classes);
+      setStudents(remote.students);
+      saveStudents(remote.students);
+      setAssessments(remote.assessments || []);
+      saveAssessments(remote.assessments || []);
+      setGrades(remote.grades || []);
+      saveGrades(remote.grades || []);
+      setSessions(remote.attendanceSessions || []);
+      saveAttendanceSessions(remote.attendanceSessions || []);
+      setRecords(remote.attendanceRecords || []);
+      saveAttendanceRecords(remote.attendanceRecords || []);
+
+      setTimeout(() => {
+        isRemoteSyncRef.current = false;
+      }, 600);
+    });
+
+    return () => unsubListener();
+  }, [cloudUser]);
+
+  // Synchronisation sortante : dès qu'une modification locale survient, on la pousse vers le Cloud
+  useEffect(() => {
+    if (!cloudUser || isRemoteSyncRef.current) return;
+    pushWorkspaceToCloud(cloudUser.uid, {
+      teacher,
+      classes,
+      students,
+      assessments,
+      grades,
+      attendanceSessions: sessions,
+      attendanceRecords: records,
+    });
+  }, [teacher, classes, students, assessments, grades, sessions, records, cloudUser]);
 
   // Synchronisation automatique vers localStorage à chaque mise à jour
   const updateTeacher = (newTeacher: Teacher) => {
@@ -345,6 +480,9 @@ export default function App() {
         onLogout={() => setAuthModalOpen(true)}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
+        cloudUser={cloudUser}
+        onOpenCloudSync={() => setCloudSyncModalOpen(true)}
+        onOpenInstallPc={() => setInstallPcModalOpen(true)}
       />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
@@ -358,6 +496,7 @@ export default function App() {
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
           onExportJSON={handleExportJSON}
+          onOpenInstallPc={() => setInstallPcModalOpen(true)}
         />
 
         {/* Zone de contenu principale */}
@@ -473,6 +612,8 @@ export default function App() {
               onImportJSON={handleImportJSON}
               onClearAllData={handleClearAllData}
               onLoadSampleData={handleLoadSampleData}
+              cloudUser={cloudUser}
+              onOpenCloudSync={() => setCloudSyncModalOpen(true)}
             />
           )}
         </main>
@@ -486,6 +627,28 @@ export default function App() {
         onLoginSuccess={(email) => {
           setIsAuthenticated(true);
         }}
+      />
+
+      {/* Modale de Synchronisation Cloud Téléphone ⇄ PC */}
+      <CloudSyncModal
+        isOpen={cloudSyncModalOpen}
+        onClose={() => setCloudSyncModalOpen(false)}
+        cloudUser={cloudUser}
+        defaultEmail={teacher.email || 'aggounnadir8@gmail.com'}
+        onSyncSuccess={(user) => {
+          setCloudUser(user);
+        }}
+        onLogoutSuccess={() => {
+          setCloudUser(null);
+        }}
+      />
+
+      {/* Guide & Installation sur PC */}
+      <InstallPcModal
+        isOpen={installPcModalOpen}
+        onClose={() => setInstallPcModalOpen(false)}
+        deferredPrompt={deferredPrompt}
+        onTriggerInstall={handleTriggerInstall}
       />
     </div>
   );

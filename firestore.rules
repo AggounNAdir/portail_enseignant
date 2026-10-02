@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny all unmapped paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(teacherId) {
+      return isSignedIn() && request.auth.uid == teacherId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Teacher profile and isolated workspace
+    match /teachers/{teacherId} {
+      allow read, write: if isOwner(teacherId) && isValidId(teacherId);
+
+      match /classes/{classId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(classId);
+      }
+
+      match /students/{studentId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(studentId);
+      }
+
+      match /assessments/{assessmentId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(assessmentId);
+      }
+
+      match /grades/{gradeId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(gradeId);
+      }
+
+      match /attendance_sessions/{sessionId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(sessionId);
+      }
+
+      match /attendance_records/{recordId} {
+        allow read, write: if isOwner(teacherId) && isValidId(teacherId) && isValidId(recordId);
+      }
+    }
+  }
+}

@@ -9,8 +9,11 @@ import {
   PlusCircle, 
   BookOpen,
   School,
-  Globe
+  Globe,
+  Cloud,
+  Laptop
 } from 'lucide-react';
+import { User } from 'firebase/auth';
 import { Teacher, Classroom, NavTab } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -24,6 +27,9 @@ interface NavbarProps {
   onLogout: () => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+  cloudUser?: User | null;
+  onOpenCloudSync?: () => void;
+  onOpenInstallPc?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,6 +42,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   mobileMenuOpen,
   setMobileMenuOpen,
+  cloudUser = null,
+  onOpenCloudSync,
+  onOpenInstallPc,
 }) => {
   const { language, setLanguage, t } = useLanguage();
   return (
@@ -93,6 +102,35 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Raccourcis d'actions rapides & profil enseignant */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Bouton de Synchronisation Temps Réel Téléphone ⇄ PC */}
+            {onOpenCloudSync && (
+              <button
+                onClick={onOpenCloudSync}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer border ${
+                  cloudUser
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                }`}
+                title={
+                  cloudUser
+                    ? `Synchronisation en direct active (${cloudUser.email})`
+                    : 'Lier téléphone et PC en direct'
+                }
+              >
+                <div className="relative flex items-center justify-center">
+                  <Cloud className="w-4 h-4 text-indigo-600" />
+                  {cloudUser && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-1.5 ring-white" />
+                  )}
+                </div>
+                <span className="text-[11px] sm:text-xs">
+                  {cloudUser
+                    ? (language === 'ar' ? '🟢 متزامن مباشر' : '🟢 En direct')
+                    : (language === 'ar' ? '☁️ ربط بالحاسوب' : '☁️ Lier au PC')}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => onNavigate('attendance')}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs cursor-pointer"
@@ -120,6 +158,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Globe className="w-3.5 h-3.5 text-indigo-600" />
               <span>{language === 'fr' ? '🇩🇿 العربية' : '🇫🇷 Français'}</span>
             </button>
+
+            {/* Bouton d'installation sur PC */}
+            {onOpenInstallPc && (
+              <button
+                onClick={onOpenInstallPc}
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:border-indigo-300 transition shadow-2xs cursor-pointer"
+                title="Installer ProfPilot sur ce PC"
+              >
+                <Laptop className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{language === 'ar' ? 'تثبيت على PC' : 'Installer sur PC'}</span>
+              </button>
+            )}
 
             <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
 
