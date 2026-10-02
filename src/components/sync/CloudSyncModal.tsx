@@ -6,140 +6,103 @@ import {
   AlertCircle,
   Laptop,
   Smartphone,
-  Lock,
-  Mail,
+  Key,
+  Copy,
+  Check,
   ArrowRight,
   LogOut,
   RefreshCw,
   Zap,
   ShieldCheck
 } from 'lucide-react';
-import { User } from 'firebase/auth';
-import { loginWithEmail, registerWithEmail, logoutCloud } from '../../services/firebase';
+import {
+  getStoredSyncKey,
+  setStoredSyncKey,
+  setCloudSyncEnabled,
+  fetchInitialCloudWorkspace,
+  pushWorkspaceToCloud
+} from '../../services/firebase';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface CloudSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
-  cloudUser: User | null;
-  onSyncSuccess: (user: User) => void;
-  onLogoutSuccess: () => void;
-  defaultEmail?: string;
+  syncKey: string;
+  isSyncActive: boolean;
+  onActivateSync: (key: string) => Promise<void>;
+  onDeactivateSync: () => void;
 }
 
 export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   isOpen,
   onClose,
-  cloudUser,
-  onSyncSuccess,
-  onLogoutSuccess,
-  defaultEmail = 'aggounnadir8@gmail.com',
+  syncKey,
+  isSyncActive,
+  onActivateSync,
+  onDeactivateSync,
 }) => {
   const { language } = useLanguage();
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState('');
+  const [inputKey, setInputKey] = useState(syncKey || getStoredSyncKey());
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(inputKey).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (password.length < 6) {
+    const clean = inputKey.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (clean.length < 4) {
       setErrorMsg(
         language === 'ar'
-          ? 'يجب أن تكون كلمة المرور 6 أحرف على الأقل.'
-          : 'Le mot de passe doit comporter au moins 6 caractères.'
+          ? 'يجب أن يتكون كود المزامنة من 4 أحرف أو أرقام على الأقل.'
+          : 'Le code doit contenir au moins 4 caractères ou chiffres.'
       );
       return;
     }
 
     setLoading(true);
     try {
-      let user: User;
-      if (isRegisterMode) {
-        user = await registerWithEmail(email, password);
-        setSuccessMsg(
-          language === 'ar'
-            ? 'تم إنشاء حساب المزامنة وتفعيله بنجاح!'
-            : 'Compte Cloud créé et synchronisation activée !'
-        );
-      } else {
-        try {
-          user = await loginWithEmail(email, password);
-          setSuccessMsg(
-            language === 'ar'
-              ? 'تم تسجيل الدخول وتفعيل المزامنة المباشرة بنجاح!'
-              : 'Connexion réussie ! Vos deux appareils sont maintenant synchronisés.'
-          );
-        } catch (loginErr: any) {
-          // Si l'utilisateur n'existe pas encore, on le crée automatiquement
-          if (loginErr?.code === 'auth/user-not-found' || loginErr?.code === 'auth/invalid-credential') {
-            try {
-              user = await registerWithEmail(email, password);
-              setSuccessMsg(
-                language === 'ar'
-                  ? 'تم إنشاء الحساب وتفعيل المزامنة الفورية بنجاح!'
-                  : 'Compte activé ! Synchronisation en temps réel prête.'
-              );
-            } catch (regErr: any) {
-              throw loginErr;
-            }
-          } else {
-            throw loginErr;
-          }
-        }
-      }
-
-      onSyncSuccess(user);
+      await onActivateSync(clean);
+      setSuccessMsg(
+        language === 'ar'
+          ? 'تم تفعيل المزامنة اللحظية السحابية بنجاح !'
+          : 'Synchronisation Cloud instantanée activée avec succès !'
+      );
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
       console.error(err);
-      if (err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential') {
-        setErrorMsg(
-          language === 'ar'
-            ? 'كلمة المرور غير صحيحة، يرجى التحقق منها.'
-            : 'Mot de passe incorrect pour cet email.'
-        );
-      } else if (err?.code === 'auth/email-already-in-use') {
-        setIsRegisterMode(false);
-        setErrorMsg(
-          language === 'ar'
-            ? 'هذا الحساب موجود بالفعل، يرجى إدخال كلمة المرور لتسجيل الدخول.'
-            : 'Ce compte existe déjà. Entrez votre mot de passe pour vous connecter.'
-        );
-      } else {
-        setErrorMsg(
-          language === 'ar'
-            ? 'تعذر الاتصال بخادم المزامنة. تأكد من اتصالك بالإنترنت.'
-            : err?.message || 'Erreur lors de la connexion.'
-        );
-      }
+      setErrorMsg(
+        language === 'ar'
+          ? 'تعذر الاتصال بقاعدة البيانات السحابية. تحقق من اتصالك بالإنترنت.'
+          : err?.message || 'Erreur lors de la connexion au Cloud.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logoutCloud();
-      onLogoutSuccess();
-      setSuccessMsg(
-        language === 'ar' ? 'تم قطع الاتصال بالمزامنة السحابية.' : 'Déconnecté de la synchronisation Cloud.'
-      );
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Erreur de déconnexion');
-    }
+  const handleDisconnect = () => {
+    onDeactivateSync();
+    setSuccessMsg(
+      language === 'ar' ? 'تم إيقاف المزامنة السحابية.' : 'Synchronisation Cloud désactivée.'
+    );
+    setTimeout(() => {
+      onClose();
+    }, 1000);
   };
 
   return (
@@ -160,12 +123,12 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <span>{language === 'ar' ? 'المزامنة الفورية (هاتف ⇄ حاسوب)' : 'Synchronisation Temps Réel (Téléphone ⇄ PC)'}</span>
+                <span>{language === 'ar' ? 'المزامنة السحابية المباشرة (هاتف ⇄ حاسوب)' : 'Liaison Cloud Directe (Téléphone ⇄ PC)'}</span>
               </h3>
               <p className="text-xs text-indigo-200">
                 {language === 'ar'
-                  ? 'كل عملية تجريها على الهاتف تظهر مباشرة على الحاسوب والعكس بالعكس'
-                  : 'Chaque saisie faite sur votre téléphone apparaît instantanément sur votre PC et vice-versa.'}
+                  ? 'مزامنة فورية بدون كلمات مرور معقدة أو أخطاء حساب'
+                  : 'Synchronisation instantanée sécurisée via votre Code de liaison unique.'}
               </p>
             </div>
           </div>
@@ -179,7 +142,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             <div className="flex items-center gap-1 text-emerald-400 font-extrabold animate-pulse">
               <span>⇄</span>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
-                {language === 'ar' ? 'مباشر (Cloud)' : 'En Direct'}
+                {isSyncActive ? (language === 'ar' ? 'متصل ومباشر' : 'Connecté en direct') : (language === 'ar' ? 'جاهز للربط' : 'Prêt à lier')}
               </span>
               <span>⇄</span>
             </div>
@@ -192,19 +155,22 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
 
         {/* Corps */}
         <div className="p-6 overflow-y-auto space-y-4">
-          {cloudUser ? (
-            /* Utilisateur déjà connecté */
+          {isSyncActive ? (
+            /* Déjà connecté et actif */
             <div className="space-y-4">
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-extrabold text-emerald-950">
-                    {language === 'ar' ? 'المزامنة السحابية الفورية مفعلة بنجاح !' : 'Synchronisation Temps Réel Active !'}
+                    {language === 'ar' ? 'المزامنة السحابية المباشرة مفعلة بنجاح !' : 'Liaison Cloud Temps Réel Active !'}
                   </h4>
-                  <p className="text-xs text-emerald-800 mt-0.5">
+                  <p className="text-xs text-emerald-800 mt-1 font-medium">
                     {language === 'ar'
-                      ? `أنت متصل بالبريد : ${cloudUser.email}. افتح التطبيق في حاسوبك وسجل الدخول بنفس هذا البريد، وستعمل المزامنة الفورية تلقائياً.`
-                      : `Connecté avec l'adresse : ${cloudUser.email}. Connectez-vous avec ce même compte sur votre PC pour que tout se synchronise en direct.`}
+                      ? `كود الربط الخاص بك هو : `
+                      : `Votre code de liaison actif : `}
+                    <strong className="px-2 py-0.5 bg-emerald-200 text-emerald-950 rounded font-mono font-bold">
+                      {inputKey}
+                    </strong>
                   </p>
                 </div>
               </div>
@@ -212,19 +178,19 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
                 <p className="font-bold text-slate-800 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>{language === 'ar' ? 'كيف تتأكد أن حاسوبك متزامن ؟' : 'Comment lier votre PC ?'}</span>
+                  <span>{language === 'ar' ? 'كيف تربط جهازك الثاني (الحاسوب) ؟' : 'Comment lier votre ordinateur ?'}</span>
                 </p>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                <ol className="list-decimal list-inside space-y-1.5 text-slate-600">
                   <li>{language === 'ar' ? 'افتح التطبيق على حاسوبك.' : 'Ouvrez ProfPilot sur votre PC.'}</li>
                   <li>
                     {language === 'ar'
-                      ? `اضغط على زر السحابة في الأعلى وسجل الدخول بـ : ${cloudUser.email}.`
-                      : `Cliquez sur le bouton Cloud en haut et connectez-vous avec : ${cloudUser.email}.`}
+                      ? `اضغط على زر السحابة في الأعلى وأدخل الكود : ${inputKey}.`
+                      : `Cliquez sur le bouton Cloud en haut et entrez le code : ${inputKey}.`}
                   </li>
                   <li>
                     {language === 'ar'
-                      ? 'مبروك! أي تلميذ أو نقطة أو غياب تدخله هنا سيظهر في الحاسوب خلال أجزاء من الثانية.'
-                      : 'Félicitations ! Chaque note, élève ou présence saisie apparaîtra en moins d’une seconde sur l’autre écran.'}
+                      ? 'أي نقطة أو غياب أو تعديل على الهاتف سيظهر مباشرة على الحاسوب والعكس بالعكس !'
+                      : 'Chaque note ou présence saisie apparaîtra en moins d’une seconde sur l’autre écran !'}
                   </li>
                 </ol>
               </div>
@@ -232,11 +198,11 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={handleDisconnect}
                   className="px-4 py-2.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>{language === 'ar' ? 'قطع الاتصال' : 'Se déconnecter'}</span>
+                  <span>{language === 'ar' ? 'إلغاء الربط' : 'Déconnecter'}</span>
                 </button>
 
                 <button
@@ -249,58 +215,50 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               </div>
             </div>
           ) : (
-            /* Formulaire de connexion / création */
+            /* Formulaire d'activation via code de liaison */
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="text-xs text-slate-600 bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-100">
-                <p className="font-bold text-indigo-950 mb-0.5">
-                  {language === 'ar'
-                    ? '💡 اختر بريدك الإلكتروني وكلمة مرور لربط أجهزتك :'
-                    : '💡 Entrez vos identifiants pour lier votre Téléphone et votre PC :'}
+              <div className="text-xs text-slate-600 bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100">
+                <p className="font-bold text-indigo-950 mb-1 flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-indigo-600" />
+                  <span>{language === 'ar' ? 'كود الربط السحابي (Téléphone ⇄ PC) :' : 'Votre Code de Liaison Cloud :'}</span>
                 </p>
-                <p className="text-[11px] text-indigo-900/80">
+                <p className="text-[11px] text-indigo-900/80 leading-relaxed">
                   {language === 'ar'
-                    ? 'أدخل نفس البريد وكلمة المرور في الهاتف والحاسوب، وستنتقل البيانات بينهما في نفس اللحظة.'
-                    : 'Utilisez simplement les mêmes identifiants sur vos 2 appareils pour une synchronisation automatique bidirectionnelle.'}
+                    ? 'أدخل نفس الكود على هاتفك وعلى حاسوبك، لتنتقل جميع الأقسام والنقاط والتلاميذ بينهما لحظياً دون الحاجة لكلمات مرور.'
+                    : 'Utilisez simplement ce même code sur votre téléphone et sur votre PC pour que vos deux écrans soient connectés en temps réel.'}
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  {language === 'ar' ? 'البريد الإلكتروني للأستاذ *' : 'Votre Email *'}
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {language === 'ar' ? 'كود المزامنة (Code de Synchronisation) *' : 'Code de Synchronisation Cloud *'}
                 </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="aggounnadir8@gmail.com"
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  {language === 'ar' ? 'كلمة المرور للربط السحابي *' : 'Mot de passe de synchronisation *'}
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Au moins 6 caractères"
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      required
+                      value={inputKey}
+                      onChange={(e) => setInputKey(e.target.value.toUpperCase())}
+                      placeholder="AGGOUN-2026"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold tracking-wider text-indigo-950 bg-indigo-50/30"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition cursor-pointer flex items-center gap-1.5 shrink-0"
+                    title="Copier le code"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied ? (language === 'ar' ? 'تم النسخ' : 'Copié') : (language === 'ar' ? 'نسخ' : 'Copier')}</span>
+                  </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   {language === 'ar'
-                    ? 'اختر كلمة مرور بسيطة يمكنك تذكرها عند فتح الحاسوب (6 أحرف فأكثر).'
-                    : 'Choisissez un mot de passe facile à retenir pour vous connecter sur votre PC.'}
+                    ? 'يمكنك ترك الكود كما هو (AGGOUN-2026) أو تغييره إلى أي رمز تفضله.'
+                    : 'Vous pouvez laisser le code par défaut (AGGOUN-2026) ou écrire le vôtre.'}
                 </p>
               </div>
 
@@ -321,36 +279,24 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-sm rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-sm rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2 mt-2"
               >
                 {loading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{language === 'ar' ? 'جارٍ الاتصال...' : 'Connexion en cours...'}</span>
+                    <span>{language === 'ar' ? 'جارٍ الاتصال بالسحابة...' : 'Connexion au Cloud...'}</span>
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4" />
+                    <Zap className="w-4 h-4 text-emerald-300" />
                     <span>
-                      {isRegisterMode
-                        ? (language === 'ar' ? 'إنشاء حساب وتفعيل المزامنة' : 'Créer mon compte et synchroniser')
-                        : (language === 'ar' ? 'تفعيل المزامنة الفورية الآن' : 'Activer la synchronisation en direct')}
+                      {language === 'ar'
+                        ? 'تفعيل المزامنة اللحظية الآن'
+                        : 'Activer la Synchronisation en Direct'}
                     </span>
                   </>
                 )}
               </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRegisterMode(!isRegisterMode)}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
-                >
-                  {isRegisterMode
-                    ? (language === 'ar' ? 'لديك حساب بالفعل ؟ تسجيل الدخول' : 'Vous avez déjà un compte ? Se connecter')
-                    : (language === 'ar' ? 'أول استخدام ؟ إنشاء حساب جديد' : 'Première utilisation ? Créer un compte')}
-                </button>
-              </div>
             </form>
           )}
         </div>

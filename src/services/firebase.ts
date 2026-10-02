@@ -7,14 +7,6 @@ import {
   onSnapshot,
   getDocFromServer
 } from 'firebase/firestore';
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
   Classroom,
@@ -33,7 +25,6 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = firebaseConfig.firestoreDatabaseId
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
-export const auth = getAuth(app);
 
 // Test de connexion obligatoire selon la directive
 export async function testFirestoreConnection() {
@@ -59,7 +50,36 @@ export function getDeviceId(): string {
   return id;
 }
 
+// Clé de synchronisation Cloud inter-appareils (Téléphone ⇄ PC)
+const SYNC_KEY_STORAGE = 'profpilot_cloud_sync_key';
+const SYNC_ENABLED_STORAGE = 'profpilot_cloud_sync_enabled';
+
+export function getStoredSyncKey(): string {
+  let key = localStorage.getItem(SYNC_KEY_STORAGE);
+  if (!key) {
+    // Clé mémorisable par défaut pour M. Nadir Aggoun
+    key = 'AGGOUN-2026';
+    localStorage.setItem(SYNC_KEY_STORAGE, key);
+  }
+  return key;
+}
+
+export function setStoredSyncKey(key: string): string {
+  const clean = key.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '') || 'AGGOUN-2026';
+  localStorage.setItem(SYNC_KEY_STORAGE, clean);
+  return clean;
+}
+
+export function isCloudSyncEnabled(): boolean {
+  return localStorage.getItem(SYNC_ENABLED_STORAGE) === 'true';
+}
+
+export function setCloudSyncEnabled(enabled: boolean): void {
+  localStorage.setItem(SYNC_ENABLED_STORAGE, enabled ? 'true' : 'false');
+}
+
 export interface CloudWorkspacePayload {
+  syncKey: string;
   teacher?: Teacher;
   classes: Classroom[];
   students: Student[];
@@ -71,26 +91,11 @@ export interface CloudWorkspacePayload {
   senderDeviceId: string;
 }
 
-// Authentification
-export async function loginWithEmail(email: string, pass: string): Promise<User> {
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
-  return cred.user;
-}
-
-export async function registerWithEmail(email: string, pass: string): Promise<User> {
-  const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-  return cred.user;
-}
-
-export async function logoutCloud(): Promise<void> {
-  await signOut(auth);
-}
-
-// Enregistrement vers le Cloud Firestore
+// Enregistrement vers le Cloud Firestore (debounced 300ms)
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function pushWorkspaceToCloud(
-  userId: string,
+  syncKey: string,
   data: {
     teacher?: Teacher;
     classes: Classroom[];
@@ -101,58 +106,62 @@ export function pushWorkspaceToCloud(
     attendanceRecords: AttendanceRecord[];
   }
 ): void {
+  if (!syncKey) return;
   if (saveTimeout) clearTimeout(saveTimeout);
 
-  // Debounce léger (300ms) pour regrouper les frappes rapides tout en restant en temps réel
   saveTimeout = setTimeout(async () => {
     try {
       const deviceId = getDeviceId();
-      const userRef = doc(db, 'teachers', userId);
+      const workspaceRef = doc(db, 'workspaces', syncKey);
       const payload: CloudWorkspacePayload = {
+        syncKey,
         ...data,
         lastUpdated: new Date().toISOString(),
         senderDeviceId: deviceId,
       };
 
-      await setDoc(userRef, payload, { merge: true });
+      await setDoc(workspaceRef, payload, { merge: true });
     } catch (err) {
       console.error("Erreur lors de l'envoi vers Cloud Firestore:", err);
     }
   }, 300);
 }
 
-// Écoute des mises à jour en direct (temps réel)
+// Écoute des modifications en temps réel (onSnapshot) depuis l'autre appareil
 export function listenToCloudWorkspace(
-  userId: string,
+  syncKey: string,
   onRemoteUpdate: (data: CloudWorkspacePayload) => void
 ): () => void {
-  const userRef = doc(db, 'teachers', userId);
+  if (!syncKey) return () => {};
+
+  const workspaceRef = doc(db, 'workspaces', syncKey);
   const currentDeviceId = getDeviceId();
 
   const unsubscribe = onSnapshot(
-    userRef,
+    workspaceRef,
     (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as CloudWorkspacePayload;
-        // Si la mise à jour vient d'un AUTRE appareil (ex: téléphone vers PC ou PC vers téléphone), on met à jour
+        // Mettre à jour uniquement si la modification vient de l'autre appareil
         if (data.senderDeviceId !== currentDeviceId) {
           onRemoteUpdate(data);
         }
       }
     },
     (err) => {
-      console.warn("Erreur d'écoute Firestore:", err);
+      console.warn("Erreur d'écoute temps réel Firestore:", err);
     }
   );
 
   return unsubscribe;
 }
 
-// Récupération initiale lors de la première connexion
-export async function fetchInitialCloudWorkspace(userId: string): Promise<CloudWorkspacePayload | null> {
+// Récupération initiale lors de la connexion
+export async function fetchInitialCloudWorkspace(syncKey: string): Promise<CloudWorkspacePayload | null> {
+  if (!syncKey) return null;
   try {
-    const userRef = doc(db, 'teachers', userId);
-    const snap = await getDoc(userRef);
+    const workspaceRef = doc(db, 'workspaces', syncKey);
+    const snap = await getDoc(workspaceRef);
     if (snap.exists()) {
       return snap.data() as CloudWorkspacePayload;
     }

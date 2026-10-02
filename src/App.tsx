@@ -32,12 +32,14 @@ import {
   isUserAuthenticated,
   setAuthenticated
 } from './services/storage';
-import { onAuthStateChanged, User } from 'firebase/auth';
 import {
-  auth,
   pushWorkspaceToCloud,
   listenToCloudWorkspace,
   fetchInitialCloudWorkspace,
+  getStoredSyncKey,
+  setStoredSyncKey,
+  isCloudSyncEnabled,
+  setCloudSyncEnabled,
   CloudWorkspacePayload
 } from './services/firebase';
 import { Navbar } from './components/layout/Navbar';
@@ -69,8 +71,9 @@ export default function App() {
   const [sessions, setSessions] = useState<AttendanceSession[]>(getStoredAttendanceSessions);
   const [records, setRecords] = useState<AttendanceRecord[]>(getStoredAttendanceRecords);
 
-  // Cloud Sync Temps Réel
-  const [cloudUser, setCloudUser] = useState<User | null>(null);
+  // Cloud Sync Temps Réel par Clé/Code de liaison
+  const [syncKey, setSyncKey] = useState<string>(getStoredSyncKey);
+  const [isSyncActive, setIsSyncActive] = useState<boolean>(isCloudSyncEnabled);
   const [cloudSyncModalOpen, setCloudSyncModalOpen] = useState(false);
   const isRemoteSyncRef = useRef(false);
 
@@ -108,62 +111,65 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
-  // Connexion initiale Firebase Auth et synchronisation Cloud bidirectionnelle
+  // Synchronisation Cloud initiale au démarrage si active
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      setCloudUser(user);
-      if (user) {
-        try {
-          const cloudData = await fetchInitialCloudWorkspace(user.uid);
-          if (cloudData && (cloudData.classes.length > 0 || cloudData.students.length > 0)) {
-            // Mettre à jour l'état local depuis le Cloud
-            isRemoteSyncRef.current = true;
-            if (cloudData.teacher) {
-              setTeacher(cloudData.teacher);
-              saveTeacher(cloudData.teacher);
-            }
-            setClasses(cloudData.classes);
-            saveClasses(cloudData.classes);
-            setStudents(cloudData.students);
-            saveStudents(cloudData.students);
-            setAssessments(cloudData.assessments || []);
-            saveAssessments(cloudData.assessments || []);
-            setGrades(cloudData.grades || []);
-            saveGrades(cloudData.grades || []);
-            setSessions(cloudData.attendanceSessions || []);
-            saveAttendanceSessions(cloudData.attendanceSessions || []);
-            setRecords(cloudData.attendanceRecords || []);
-            saveAttendanceRecords(cloudData.attendanceRecords || []);
+    if (!isSyncActive || !syncKey) return;
 
-            setTimeout(() => {
-              isRemoteSyncRef.current = false;
-            }, 600);
-          } else {
-            // Si le Cloud était vierge, pousser les données locales déjà existantes
-            pushWorkspaceToCloud(user.uid, {
-              teacher,
-              classes,
-              students,
-              assessments,
-              grades,
-              attendanceSessions: sessions,
-              attendanceRecords: records,
-            });
+    let isMounted = true;
+    (async () => {
+      try {
+        const cloudData = await fetchInitialCloudWorkspace(syncKey);
+        if (!isMounted) return;
+
+        if (cloudData && (cloudData.classes.length > 0 || cloudData.students.length > 0)) {
+          isRemoteSyncRef.current = true;
+          if (cloudData.teacher) {
+            setTeacher(cloudData.teacher);
+            saveTeacher(cloudData.teacher);
           }
-        } catch (e) {
-          console.error("Erreur sync initiale:", e);
-        }
-      }
-    });
+          setClasses(cloudData.classes);
+          saveClasses(cloudData.classes);
+          setStudents(cloudData.students);
+          saveStudents(cloudData.students);
+          setAssessments(cloudData.assessments || []);
+          saveAssessments(cloudData.assessments || []);
+          setGrades(cloudData.grades || []);
+          saveGrades(cloudData.grades || []);
+          setSessions(cloudData.attendanceSessions || []);
+          saveAttendanceSessions(cloudData.attendanceSessions || []);
+          setRecords(cloudData.attendanceRecords || []);
+          saveAttendanceRecords(cloudData.attendanceRecords || []);
 
-    return () => unsubAuth();
-  }, []);
+          setTimeout(() => {
+            isRemoteSyncRef.current = false;
+          }, 600);
+        } else {
+          // Premier envoi vers le Cloud
+          pushWorkspaceToCloud(syncKey, {
+            teacher,
+            classes,
+            students,
+            assessments,
+            grades,
+            attendanceSessions: sessions,
+            attendanceRecords: records,
+          });
+        }
+      } catch (err) {
+        console.error("Erreur sync Cloud initiale:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isSyncActive, syncKey]);
 
   // Écouteur temps réel (onSnapshot) : dès que l'autre appareil modifie quelque chose, on l'applique ici !
   useEffect(() => {
-    if (!cloudUser) return;
+    if (!isSyncActive || !syncKey) return;
 
-    const unsubListener = listenToCloudWorkspace(cloudUser.uid, (remote) => {
+    const unsubListener = listenToCloudWorkspace(syncKey, (remote) => {
       isRemoteSyncRef.current = true;
       if (remote.teacher) {
         setTeacher(remote.teacher);
@@ -188,12 +194,12 @@ export default function App() {
     });
 
     return () => unsubListener();
-  }, [cloudUser]);
+  }, [isSyncActive, syncKey]);
 
   // Synchronisation sortante : dès qu'une modification locale survient, on la pousse vers le Cloud
   useEffect(() => {
-    if (!cloudUser || isRemoteSyncRef.current) return;
-    pushWorkspaceToCloud(cloudUser.uid, {
+    if (!isSyncActive || !syncKey || isRemoteSyncRef.current) return;
+    pushWorkspaceToCloud(syncKey, {
       teacher,
       classes,
       students,
@@ -202,7 +208,54 @@ export default function App() {
       attendanceSessions: sessions,
       attendanceRecords: records,
     });
-  }, [teacher, classes, students, assessments, grades, sessions, records, cloudUser]);
+  }, [teacher, classes, students, assessments, grades, sessions, records, isSyncActive, syncKey]);
+
+  const handleActivateSync = async (newKey: string) => {
+    const clean = setStoredSyncKey(newKey);
+    setSyncKey(clean);
+    setCloudSyncEnabled(true);
+    setIsSyncActive(true);
+
+    const cloudData = await fetchInitialCloudWorkspace(clean);
+    if (cloudData && (cloudData.classes.length > 0 || cloudData.students.length > 0)) {
+      isRemoteSyncRef.current = true;
+      if (cloudData.teacher) {
+        setTeacher(cloudData.teacher);
+        saveTeacher(cloudData.teacher);
+      }
+      setClasses(cloudData.classes);
+      saveClasses(cloudData.classes);
+      setStudents(cloudData.students);
+      saveStudents(cloudData.students);
+      setAssessments(cloudData.assessments || []);
+      saveAssessments(cloudData.assessments || []);
+      setGrades(cloudData.grades || []);
+      saveGrades(cloudData.grades || []);
+      setSessions(cloudData.attendanceSessions || []);
+      saveAttendanceSessions(cloudData.attendanceSessions || []);
+      setRecords(cloudData.attendanceRecords || []);
+      saveAttendanceRecords(cloudData.attendanceRecords || []);
+
+      setTimeout(() => {
+        isRemoteSyncRef.current = false;
+      }, 600);
+    } else {
+      pushWorkspaceToCloud(clean, {
+        teacher,
+        classes,
+        students,
+        assessments,
+        grades,
+        attendanceSessions: sessions,
+        attendanceRecords: records,
+      });
+    }
+  };
+
+  const handleDeactivateSync = () => {
+    setCloudSyncEnabled(false);
+    setIsSyncActive(false);
+  };
 
   // Synchronisation automatique vers localStorage à chaque mise à jour
   const updateTeacher = (newTeacher: Teacher) => {
@@ -480,7 +533,8 @@ export default function App() {
         onLogout={() => setAuthModalOpen(true)}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
-        cloudUser={cloudUser}
+        isSyncActive={isSyncActive}
+        syncKey={syncKey}
         onOpenCloudSync={() => setCloudSyncModalOpen(true)}
         onOpenInstallPc={() => setInstallPcModalOpen(true)}
       />
@@ -612,7 +666,8 @@ export default function App() {
               onImportJSON={handleImportJSON}
               onClearAllData={handleClearAllData}
               onLoadSampleData={handleLoadSampleData}
-              cloudUser={cloudUser}
+              isSyncActive={isSyncActive}
+              syncKey={syncKey}
               onOpenCloudSync={() => setCloudSyncModalOpen(true)}
             />
           )}
@@ -633,14 +688,10 @@ export default function App() {
       <CloudSyncModal
         isOpen={cloudSyncModalOpen}
         onClose={() => setCloudSyncModalOpen(false)}
-        cloudUser={cloudUser}
-        defaultEmail={teacher.email || 'aggounnadir8@gmail.com'}
-        onSyncSuccess={(user) => {
-          setCloudUser(user);
-        }}
-        onLogoutSuccess={() => {
-          setCloudUser(null);
-        }}
+        syncKey={syncKey}
+        isSyncActive={isSyncActive}
+        onActivateSync={handleActivateSync}
+        onDeactivateSync={handleDeactivateSync}
       />
 
       {/* Guide & Installation sur PC */}

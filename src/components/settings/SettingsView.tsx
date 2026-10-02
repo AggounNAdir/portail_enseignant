@@ -22,7 +22,6 @@ import {
   Share2,
   RefreshCw
 } from 'lucide-react';
-import { User as FirebaseUser } from 'firebase/auth';
 import { Teacher } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { exportAllDataAsJSON } from '../../services/storage';
@@ -34,7 +33,8 @@ interface SettingsViewProps {
   onImportJSON: (jsonString: string) => boolean;
   onClearAllData: () => void;
   onLoadSampleData: () => void;
-  cloudUser?: FirebaseUser | null;
+  isSyncActive?: boolean;
+  syncKey?: string;
   onOpenCloudSync?: () => void;
 }
 
@@ -45,7 +45,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onImportJSON,
   onClearAllData,
   onLoadSampleData,
-  cloudUser = null,
+  isSyncActive = false,
+  syncKey = '',
   onOpenCloudSync,
 }) => {
   const { language, setLanguage, t, isRTL } = useLanguage();
@@ -522,17 +523,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div>
                 <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
                   <span>{language === 'ar' ? 'المزامنة السحابية اللحظية (تلقائية بالكامل)' : 'Synchronisation Cloud Instantanée (100% Automatique)'}</span>
-                  {cloudUser && (
+                  {isSyncActive && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold">
-                      {language === 'ar' ? 'مفعلة' : 'Active'}
+                      {language === 'ar' ? `مفعلة (${syncKey})` : `Active (${syncKey})`}
                     </span>
                   )}
                 </h3>
                 <p className="text-xs text-indigo-200 mt-0.5">
-                  {cloudUser
+                  {isSyncActive
                     ? (language === 'ar'
-                        ? `متصل بالبريد : ${cloudUser.email}. أي عملية تقوم بها الآن تنعكس فوراً على الحاسوب.`
-                        : `Connecté (${cloudUser.email}). Chaque opération est répercutée en direct sur votre PC.`)
+                        ? `متصل بالكود : ${syncKey}. أي عملية تقوم بها الآن تنعكس فوراً على الحاسوب.`
+                        : `Connecté avec le code : ${syncKey}. Chaque opération est répercutée en direct sur votre PC.`)
                     : (language === 'ar'
                         ? 'اضغط هنا لربط الهاتف والحاسوب، لتظهر التعديلات لحظياً دون نسخ أو تحميل أي ملف!'
                         : 'Connectez vos deux appareils pour que chaque action soit transmise en direct sans fichier !')}
@@ -544,7 +545,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onClick={onOpenCloudSync}
               className="px-5 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg shrink-0 flex items-center justify-center gap-2"
             >
-              <span>{cloudUser ? (language === 'ar' ? 'إدارة المزامنة السحابية' : 'Gérer la synchronisation') : (language === 'ar' ? '⚡ تفعيل المزامنة المباشرة' : '⚡ Activer la synchronisation')}</span>
+              <span>{isSyncActive ? (language === 'ar' ? 'إدارة المزامنة السحابية' : 'Gérer la synchronisation') : (language === 'ar' ? '⚡ تفعيل المزامنة المباشرة' : '⚡ Activer la synchronisation')}</span>
             </button>
           </div>
         )}

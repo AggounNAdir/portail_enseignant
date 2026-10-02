@@ -27,7 +27,8 @@ interface NavbarProps {
   onLogout: () => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
-  cloudUser?: User | null;
+  isSyncActive?: boolean;
+  syncKey?: string;
   onOpenCloudSync?: () => void;
   onOpenInstallPc?: () => void;
 }
@@ -42,7 +43,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   mobileMenuOpen,
   setMobileMenuOpen,
-  cloudUser = null,
+  isSyncActive = false,
+  syncKey = '',
   onOpenCloudSync,
   onOpenInstallPc,
 }) => {
@@ -107,25 +109,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onOpenCloudSync}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer border ${
-                  cloudUser
+                  isSyncActive
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
                 }`}
                 title={
-                  cloudUser
-                    ? `Synchronisation en direct active (${cloudUser.email})`
+                  isSyncActive
+                    ? `Synchronisation en direct active (${syncKey})`
                     : 'Lier téléphone et PC en direct'
                 }
               >
                 <div className="relative flex items-center justify-center">
                   <Cloud className="w-4 h-4 text-indigo-600" />
-                  {cloudUser && (
+                  {isSyncActive && (
                     <span className="w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-1.5 ring-white" />
                   )}
                 </div>
                 <span className="text-[11px] sm:text-xs">
-                  {cloudUser
-                    ? (language === 'ar' ? '🟢 متزامن مباشر' : '🟢 En direct')
+                  {isSyncActive
+                    ? (language === 'ar' ? `🟢 مباشر (${syncKey})` : `🟢 En direct (${syncKey})`)
                     : (language === 'ar' ? '☁️ ربط بالحاسوب' : '☁️ Lier au PC')}
                 </span>
               </button>

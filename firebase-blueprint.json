@@ -1,147 +1,28 @@
 {
   "entities": {
-    "TeacherProfile": {
-      "title": "TeacherProfile",
-      "description": "Profil de l'enseignant et configuration du compte",
+    "TeacherWorkspace": {
+      "title": "TeacherWorkspace",
+      "description": "Espace de travail complet synchronisé en temps réel",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "name": { "type": "string", "maxLength": 100 },
-        "email": { "type": "string", "maxLength": 120 },
-        "school": { "type": "string", "maxLength": 150 },
-        "subject": { "type": "string", "maxLength": 100 },
-        "avatarUrl": { "type": "string", "maxLength": 500 },
-        "syncCode": { "type": "string", "maxLength": 64 },
-        "updatedAt": { "type": "string", "maxLength": 64 }
+        "syncKey": { "type": "string", "maxLength": 64 },
+        "teacher": { "type": "object" },
+        "classes": { "type": "array" },
+        "students": { "type": "array" },
+        "assessments": { "type": "array" },
+        "grades": { "type": "array" },
+        "attendanceSessions": { "type": "array" },
+        "attendanceRecords": { "type": "array" },
+        "lastUpdated": { "type": "string", "maxLength": 64 },
+        "senderDeviceId": { "type": "string", "maxLength": 64 }
       },
-      "required": ["id", "name", "email", "updatedAt"]
-    },
-    "Classroom": {
-      "title": "Classroom",
-      "description": "Classe pédagogique",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "name": { "type": "string", "maxLength": 100 },
-        "level": { "type": "string", "maxLength": 100 },
-        "schoolYear": { "type": "string", "maxLength": 50 },
-        "groupCount": { "type": "integer" },
-        "createdAt": { "type": "string", "maxLength": 64 }
-      },
-      "required": ["id", "teacherId", "name", "level", "schoolYear", "createdAt"]
-    },
-    "Student": {
-      "title": "Student",
-      "description": "Fiche élève",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "classId": { "type": "string", "maxLength": 128 },
-        "group": { "type": "string", "maxLength": 10 },
-        "firstName": { "type": "string", "maxLength": 100 },
-        "lastName": { "type": "string", "maxLength": 100 },
-        "registrationNumber": { "type": "string", "maxLength": 64 },
-        "gender": { "type": "string", "maxLength": 5 },
-        "birthDate": { "type": "string", "maxLength": 30 },
-        "parentPhone": { "type": "string", "maxLength": 30 },
-        "nationalId": { "type": "string", "maxLength": 64 },
-        "isRepeating": { "type": "boolean" },
-        "boardingStatus": { "type": "string", "maxLength": 50 },
-        "notes": { "type": "string", "maxLength": 500 }
-      },
-      "required": ["id", "teacherId", "classId", "firstName", "lastName"]
-    },
-    "Assessment": {
-      "title": "Assessment",
-      "description": "Évaluation / Devoir / Examen",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "classId": { "type": "string", "maxLength": 128 },
-        "title": { "type": "string", "maxLength": 150 },
-        "type": { "type": "string", "maxLength": 50 },
-        "maxScore": { "type": "number" },
-        "coefficient": { "type": "number" },
-        "trimester": { "type": "integer" },
-        "date": { "type": "string", "maxLength": 30 }
-      },
-      "required": ["id", "teacherId", "classId", "title", "maxScore", "coefficient", "trimester", "date"]
-    },
-    "Grade": {
-      "title": "Grade",
-      "description": "Note d'un élève à une évaluation",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "studentId": { "type": "string", "maxLength": 128 },
-        "assessmentId": { "type": "string", "maxLength": 128 },
-        "score": { "type": "number" },
-        "comment": { "type": "string", "maxLength": 300 }
-      },
-      "required": ["id", "teacherId", "studentId", "assessmentId", "score"]
-    },
-    "AttendanceSession": {
-      "title": "AttendanceSession",
-      "description": "Séance d'appel et de présence",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "classId": { "type": "string", "maxLength": 128 },
-        "group": { "type": "string", "maxLength": 20 },
-        "date": { "type": "string", "maxLength": 30 },
-        "timeSlot": { "type": "string", "maxLength": 50 },
-        "topic": { "type": "string", "maxLength": 200 }
-      },
-      "required": ["id", "teacherId", "classId", "date"]
-    },
-    "AttendanceRecord": {
-      "title": "AttendanceRecord",
-      "description": "Statut de présence de l'élève pour une séance",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "teacherId": { "type": "string", "maxLength": 128 },
-        "sessionId": { "type": "string", "maxLength": 128 },
-        "studentId": { "type": "string", "maxLength": 128 },
-        "status": { "type": "string", "maxLength": 20 },
-        "note": { "type": "string", "maxLength": 200 }
-      },
-      "required": ["id", "teacherId", "sessionId", "studentId", "status"]
+      "required": ["syncKey", "lastUpdated", "classes", "students"]
     }
   },
   "firestore": {
-    "/teachers/{teacherId}": {
-      "schema": { "$ref": "#/entities/TeacherProfile" },
-      "description": "Profil de l'enseignant"
-    },
-    "/teachers/{teacherId}/classes/{classId}": {
-      "schema": { "$ref": "#/entities/Classroom" },
-      "description": "Classes de l'enseignant"
-    },
-    "/teachers/{teacherId}/students/{studentId}": {
-      "schema": { "$ref": "#/entities/Student" },
-      "description": "Élèves de l'enseignant"
-    },
-    "/teachers/{teacherId}/assessments/{assessmentId}": {
-      "schema": { "$ref": "#/entities/Assessment" },
-      "description": "Évaluations de l'enseignant"
-    },
-    "/teachers/{teacherId}/grades/{gradeId}": {
-      "schema": { "$ref": "#/entities/Grade" },
-      "description": "Notes des élèves"
-    },
-    "/teachers/{teacherId}/attendance_sessions/{sessionId}": {
-      "schema": { "$ref": "#/entities/AttendanceSession" },
-      "description": "Séances d'appel"
-    },
-    "/teachers/{teacherId}/attendance_records/{recordId}": {
-      "schema": { "$ref": "#/entities/AttendanceRecord" },
-      "description": "Registres d'appel"
+    "/workspaces/{workspaceKey}": {
+      "schema": { "$ref": "#/entities/TeacherWorkspace" },
+      "description": "Données synchronisées entre téléphone et PC pour un enseignant"
     }
   }
 }
