@@ -8,10 +8,33 @@ export interface Teacher {
 }
 
 export type ClassLevel = 
+  // التعليم الابتدائي (Primaire)
+  | '1AP (السنة الأولى ابتدائي)'
+  | '2AP (السنة الثانية ابتدائي)'
+  | '3AP (السنة الثالثة ابتدائي)'
+  | '4AP (السنة الرابعة ابتدائي)'
+  | '5AP (السنة الخامسة ابتدائي)'
+  // التعليم المتوسط (CEM)
   | '1AM (السنة الأولى متوسط)'
   | '2AM (السنة الثانية متوسط)'
   | '3AM (السنة الثالثة متوسط)'
   | '4AM (السنة الرابعة متوسط - BEM)'
+  // التعليم الثانوي (Lycée)
+  | '1AS (الأولى ثانوي - ج.م علوم وتكنولوجيا)'
+  | '1AS (الأولى ثانوي - ج.م آداب)'
+  | '2AS (الثانية ثانوي - علوم تجريبية)'
+  | '2AS (الثانية ثانوي - رياضيات)'
+  | '2AS (الثانية ثانوي - تقني رياضي)'
+  | '2AS (الثانية ثانوي - تسيير واقتصاد)'
+  | '2AS (الثانية ثانوي - آداب وفلسفة)'
+  | '2AS (الثانية ثانوي - لغات أجنبية)'
+  | '3AS (الثالثة ثانوي - بكالوريا علوم تجريبية)'
+  | '3AS (الثالثة ثانوي - بكالوريا رياضيات)'
+  | '3AS (الثالثة ثانوي - بكالوريا تقني رياضي)'
+  | '3AS (الثالثة ثانوي - بكالوريا تسيير واقتصاد)'
+  | '3AS (الثالثة ثانوي - بكالوريا آداب وفلسفة)'
+  | '3AS (الثالثة ثانوي - بكالوريا لغات أجنبية)'
+  // Systèmes internationaux / Enseignement général
   | '6ème'
   | '5ème'
   | '4ème'
@@ -20,7 +43,7 @@ export type ClassLevel =
   | 'Première'
   | 'Terminale'
   | 'BTS / Supérieur'
-  | 'Primaire / Autre';
+  | 'Autre niveau';
 
 export interface Classroom {
   id: string;
@@ -174,7 +197,8 @@ export interface FullReportCard {
     latesCount: number;
   };
   councilAppreciation: string;
-  honorMention?: 'Félicitations' | 'Compliments' | 'Encouragements' | 'Avertissement de travail' | 'Avertissement de conduite' | null;
+  honorMention?: 'Félicitations' | 'Compliments' | 'Encouragements' | 'Avertissement de travail' | 'Avertissement de conduite' | string | null;
+  honorMentionAr?: string;
 }
 
 export type NavTab = 

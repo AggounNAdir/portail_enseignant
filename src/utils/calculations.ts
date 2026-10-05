@@ -13,7 +13,10 @@ import {
 } from '../types';
 
 /**
- * Calcule la moyenne pondérée d'un élève pour une classe ou matière donnée
+ * Calcule la moyenne d'un élève pour une classe ou matière donnée.
+ * Si les devoirs correspondent au système officiel algérien (التقويم, الفرض, الاختبار),
+ * applique la formule officielle du Ministère de l'Éducation Nationale :
+ * Moyenne = (التقويم المستمر + معدل الفروض + الاختبار × 2) / 4
  */
 export function calculateStudentAverage(
   studentId: string,
@@ -26,6 +29,64 @@ export function calculateStudentAverage(
 
   if (studentGrades.length === 0) return null;
 
+  // Détection des composantes du système officiel algérien (التقويم / الفرض / الاختبار)
+  let taqwimScore: number | null = null;
+  const fardhScores: number[] = [];
+  let ikhtibarScore: number | null = null;
+
+  for (const grade of studentGrades) {
+    const assessment = assessments.find((a) => a.id === grade.assessmentId);
+    if (!assessment || grade.score === null) continue;
+
+    const normalized = (grade.score / assessment.maxScore) * 20;
+    const typeLower = (assessment.type || '').toLowerCase();
+    const titleLower = (assessment.title || '').toLowerCase();
+
+    const isTaqwim = typeLower.includes('تقويم') || titleLower.includes('تقويم') || typeLower.includes('continu');
+    const isFardh = typeLower.includes('فرض') || titleLower.includes('فرض') || typeLower.includes('ds');
+    const isIkhtibar = typeLower.includes('اختبار') || titleLower.includes('اختبار') || typeLower.includes('composition') || typeLower.includes('examen');
+
+    if (isTaqwim && taqwimScore === null) {
+      taqwimScore = normalized;
+    } else if (isFardh) {
+      fardhScores.push(normalized);
+    } else if (isIkhtibar && ikhtibarScore === null) {
+      ikhtibarScore = normalized;
+    }
+  }
+
+  // Si au moins 2 composantes officielles sont présentes (ex: التقويم + الفرض أو الاختبار),
+  // appliquer la formule ministérielle algérienne
+  const hasOfficialComponents =
+    (taqwimScore !== null && fardhScores.length > 0) ||
+    (ikhtibarScore !== null && (taqwimScore !== null || fardhScores.length > 0));
+
+  if (hasOfficialComponents) {
+    let totalScore = 0;
+    let totalDivisor = 0;
+
+    if (taqwimScore !== null) {
+      totalScore += taqwimScore;
+      totalDivisor += 1;
+    }
+
+    if (fardhScores.length > 0) {
+      const avgFardh = fardhScores.reduce((a, b) => a + b, 0) / fardhScores.length;
+      totalScore += avgFardh;
+      totalDivisor += 1;
+    }
+
+    if (ikhtibarScore !== null) {
+      totalScore += ikhtibarScore * 2;
+      totalDivisor += 2;
+    }
+
+    if (totalDivisor > 0) {
+      return Number((totalScore / totalDivisor).toFixed(2));
+    }
+  }
+
+  // Calcul classique par moyenne pondérée standard si devoirs personnalisés
   let totalWeightedScore = 0;
   let totalCoefficients = 0;
 
@@ -344,15 +405,30 @@ export function generateFullReportCard(
   // Assiduité
   const attSummary = calculateStudentAttendance(student.id, attendanceRecords);
 
-  // Mention d'honneur
+  // Mention d'honneur (conforme réglementation officielle MEN Algérie)
   let honorMention: FullReportCard['honorMention'] = null;
+  let honorMentionAr: string | undefined = undefined;
+
   if (studentOverallAverage !== null) {
-    if (studentOverallAverage >= 16) honorMention = 'Félicitations';
-    else if (studentOverallAverage >= 14) honorMention = 'Compliments';
-    else if (studentOverallAverage >= 12 && attSummary.unexcusedAbsenceCount === 0)
+    if (studentOverallAverage >= 18) {
+      honorMention = 'Félicitations';
+      honorMentionAr = 'تهنئة مع تنويه شرفي';
+    } else if (studentOverallAverage >= 15) {
+      honorMention = 'Félicitations';
+      honorMentionAr = 'تهنئة';
+    } else if (studentOverallAverage >= 12) {
+      honorMention = 'Compliments';
+      honorMentionAr = 'لوحة شرف';
+    } else if (studentOverallAverage >= 10) {
       honorMention = 'Encouragements';
-    else if (studentOverallAverage < 8 && attSummary.unexcusedAbsenceCount > 2)
+      honorMentionAr = 'تشجيع';
+    } else if (studentOverallAverage >= 9) {
       honorMention = 'Avertissement de travail';
+      honorMentionAr = 'إنذار في العمل';
+    } else {
+      honorMention = 'Avertissement de travail';
+      honorMentionAr = 'توبيخ';
+    }
   }
 
   // Appréciation globale du conseil
@@ -394,6 +470,7 @@ export function generateFullReportCard(
     },
     councilAppreciation,
     honorMention,
+    honorMentionAr,
   };
 }
 
@@ -717,3 +794,156 @@ export function parseStudentsCSV(
 
   return { success, errors };
 }
+
+export interface AlgerianRaqmanaStudentData {
+  studentId: string;
+  nationalId: string;
+  registrationNumber: string;
+  lastName: string;
+  firstName: string;
+  birthDate: string;
+  group: string;
+  taqwim: number | null;
+  fardh1: number | null;
+  fardh2: number | null;
+  ikhtibar: number | null;
+  moyenne: number | null;
+  mentionAr: string;
+  mentionFr: string;
+}
+
+/**
+ * Extrait les données structurées pour la plateforme de numérisation de l'Éducation Nationale (الرقمنة)
+ */
+export function extractAlgerianRaqmanaData(
+  students: Student[],
+  assessments: Assessment[],
+  grades: Grade[]
+): AlgerianRaqmanaStudentData[] {
+  const sorted = [...students].sort((a, b) => a.lastName.localeCompare(b.lastName, 'fr'));
+
+  return sorted.map((st) => {
+    const studentGrades = grades.filter((g) => g.studentId === st.id && g.score !== null && !g.isAbsent);
+
+    let taqwim: number | null = null;
+    let fardh1: number | null = null;
+    let fardh2: number | null = null;
+    let ikhtibar: number | null = null;
+
+    for (const g of studentGrades) {
+      const a = assessments.find((ass) => ass.id === g.assessmentId);
+      if (!a || g.score === null) continue;
+
+      const norm = Number(((g.score / a.maxScore) * 20).toFixed(2));
+      const t = (a.type || '').toLowerCase();
+      const title = (a.title || '').toLowerCase();
+
+      if (t.includes('تقويم') || title.includes('تقويم')) {
+        taqwim = norm;
+      } else if (t.includes('فرض 2') || title.includes('فرض 2') || title.includes('ثاني')) {
+        fardh2 = norm;
+      } else if (t.includes('فرض') || title.includes('فرض')) {
+        if (fardh1 === null) fardh1 = norm;
+        else fardh2 = norm;
+      } else if (t.includes('اختبار') || title.includes('اختبار') || t.includes('composition')) {
+        ikhtibar = norm;
+      }
+    }
+
+    const moyenne = calculateStudentAverage(st.id, assessments, grades);
+    let mentionAr = 'عادي';
+    let mentionFr = 'Passable';
+
+    if (moyenne !== null) {
+      if (moyenne >= 18) {
+        mentionAr = 'تهنئة مع تنويه';
+        mentionFr = 'Félicitations avec distinction';
+      } else if (moyenne >= 15) {
+        mentionAr = 'تهنئة';
+        mentionFr = 'Félicitations';
+      } else if (moyenne >= 12) {
+        mentionAr = 'لوحة شرف';
+        mentionFr = 'Tableau d’honneur';
+      } else if (moyenne >= 10) {
+        mentionAr = 'تشجيع';
+        mentionFr = 'Encouragements';
+      } else if (moyenne >= 9) {
+        mentionAr = 'إنذار';
+        mentionFr = 'Avertissement';
+      } else {
+        mentionAr = 'توبيخ';
+        mentionFr = 'Blâme';
+      }
+    }
+
+    return {
+      studentId: st.id,
+      nationalId: st.nationalId || '',
+      registrationNumber: st.registrationNumber || '',
+      lastName: st.lastName,
+      firstName: st.firstName,
+      birthDate: st.birthDate || '',
+      group: st.group ? `فوج ${st.group}` : 'الفوج 1',
+      taqwim,
+      fardh1,
+      fardh2,
+      ikhtibar,
+      moyenne,
+      mentionAr,
+      mentionFr,
+    };
+  });
+}
+
+/**
+ * Télécharge un fichier CSV optimisé pour la plate-forme de numérisation de l'Éducation Nationale
+ * avec UTF-8 BOM pour un affichage parfait dans Microsoft Excel sans caractères arabes corrompus.
+ */
+export function downloadAlgerianRaqmanaCSV(
+  className: string,
+  subject: string,
+  data: AlgerianRaqmanaStudentData[]
+): void {
+  const headers = [
+    'رقم التعريف الوطني (NIN)',
+    'رقم التسجيل',
+    'اللقب',
+    'الاسم',
+    'تاريخ الميلاد',
+    'الفوج',
+    'التقويم المستمر (20)',
+    'الفرض 1 (20)',
+    'الفرض 2 (20)',
+    'الاختبار (20)',
+    'معدل المادة (20)',
+    'الملاحظة الرسمية'
+  ];
+
+  const rows = data.map((r) => [
+    `"${r.nationalId}"`,
+    `"${r.registrationNumber}"`,
+    `"${r.lastName}"`,
+    `"${r.firstName}"`,
+    `"${r.birthDate}"`,
+    `"${r.group}"`,
+    r.taqwim !== null ? r.taqwim : '',
+    r.fardh1 !== null ? r.fardh1 : '',
+    r.fardh2 !== null ? r.fardh2 : '',
+    r.ikhtibar !== null ? r.ikhtibar : '',
+    r.moyenne !== null ? r.moyenne : '',
+    `"${r.mentionAr}"`
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const safeClassName = className.replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '_');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `كشف_نقاط_الرقمنة_${safeClassName}_${subject}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+

@@ -13,10 +13,16 @@ import {
   HelpCircle,
   X,
   TrendingUp,
-  Users
+  Users,
+  Download,
+  Check
 } from 'lucide-react';
 import { Classroom, Student, Assessment, Grade, AssessmentType } from '../../types';
-import { calculateStudentAverage } from '../../utils/calculations';
+import {
+  calculateStudentAverage,
+  extractAlgerianRaqmanaData,
+  downloadAlgerianRaqmanaCSV
+} from '../../utils/calculations';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface GradesViewProps {
@@ -255,6 +261,17 @@ export const GradesView: React.FC<GradesViewProps> = ({
     }
   };
 
+  // Export officiel pour la plate-forme de numérisation (فضاء الأساتذة)
+  const [raqmanaExported, setRaqmanaExported] = useState(false);
+
+  const handleExportRaqmana = () => {
+    if (!activeClass || classStudents.length === 0) return;
+    const raqmanaData = extractAlgerianRaqmanaData(classStudents, classAssessments, grades);
+    downloadAlgerianRaqmanaCSV(activeClass.name, activeClass.subject, raqmanaData);
+    setRaqmanaExported(true);
+    setTimeout(() => setRaqmanaExported(false), 3000);
+  };
+
   // Gestion des changements de notes locales
   const handleScoreChange = (studentId: string, val: string) => {
     setLocalGrades((prev) => ({
@@ -369,7 +386,7 @@ export const GradesView: React.FC<GradesViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Sélecteur de classe */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Classe :</span>
@@ -386,6 +403,21 @@ export const GradesView: React.FC<GradesViewProps> = ({
             </select>
           </div>
 
+          {/* Bouton Export Numérisation MEN */}
+          <button
+            onClick={handleExportRaqmana}
+            disabled={classStudents.length === 0}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+            title="Exporter le fichier conforme pour la plate-forme de numérisation (فضاء الأساتذة)"
+          >
+            {raqmanaExported ? <Check className="w-4 h-4 text-emerald-200" /> : <Download className="w-4 h-4" />}
+            <span>
+              {raqmanaExported
+                ? (language === 'ar' ? 'تم تنزيل كشف الرقمنة !' : 'Fichier téléchargé !')
+                : (language === 'ar' ? '📑 تصدير لرقمنة وزارة التربية' : '📑 Export format الرقمنة (MEN)')}
+            </span>
+          </button>
+
           <button
             onClick={handleOpenAddAssessment}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition cursor-pointer"
@@ -396,27 +428,27 @@ export const GradesView: React.FC<GradesViewProps> = ({
         </div>
       </div>
 
-      {/* Bannière Spécifique CEM Algérie */}
-      <div className="bg-linear-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border border-emerald-500/20">
+      {/* Bannière Spécifique Ministère de l'Éducation Nationale (Algérie) */}
+      <div className="bg-linear-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md border border-emerald-500/20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black shrink-0 border border-emerald-400/30 text-sm">
-            CEM
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black shrink-0 border border-emerald-400/30 text-sm">
+            MEN
           </div>
           <div>
             <h4 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-              <span>{language === 'ar' ? 'نظام التقويم الرسمي للتعليم المتوسط (الجزائر)' : 'Système Officiel CEM Algérie'}</span>
+              <span>{language === 'ar' ? 'نظام التقويم الرسمي لوزارة التربية الوطنية (الجزائر)' : 'Système Officiel Ministère de l’Éducation (Algérie)'}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 font-semibold">
-                {language === 'ar' ? 'رسمي ومعتمد' : 'Conforme MEN'}
+                {language === 'ar' ? 'ابتدائي • متوسط • ثانوي' : 'Primaire • CEM • Lycée'}
               </span>
             </h4>
             <p className="text-xs text-emerald-100/90 mt-0.5">
               {language === 'ar'
-                ? 'المعدل الفصلي للمادة = [التقويم المستمر + الفرض + (الاختبار × 2)] ÷ 4'
-                : 'Moyenne Trimestrielle = [Contrôle Continu + Devoir + (Examen × 2)] ÷ 4'}
+                ? 'المعدل الفصلي للمادة = [التقويم المستمر + معدل الفروض + (الاختبار × 2)] ÷ 4'
+                : 'Moyenne Trimestrielle = [Contrôle Continu + Moyenne Devoirs + (Examen × 2)] ÷ 4'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-200 border border-white/10 font-semibold">
             {language === 'ar' ? 'التقويم (1)' : 'Éval. (1)'}
           </span>

@@ -346,9 +346,10 @@ export const ReportCardsView: React.FC<ReportCardsViewProps> = ({
                   <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
                     APPRÉCIATION GLOBALE DU CONSEIL DE CLASSE
                   </span>
-                  {rc.honorMention && (
-                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-indigo-600 text-white shadow-xs">
-                      ★ {rc.honorMention}
+                  {(rc.honorMention || rc.honorMentionAr) && (
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-indigo-600 text-white shadow-xs flex items-center gap-1.5">
+                      <span>★</span>
+                      <span>{rc.honorMentionAr ? `${rc.honorMentionAr} • ${rc.honorMention}` : rc.honorMention}</span>
                     </span>
                   )}
                 </div>

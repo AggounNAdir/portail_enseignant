@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -20,10 +20,48 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Nettoyage immédiat des anciens Service Workers et caches corrompus -->
+    <script>
+      (function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            var needReload = false;
+            for (var reg of registrations) {
+              reg.unregister();
+              needReload = true;
+            }
+            if (needReload && !sessionStorage.getItem('sw_cleared_v1')) {
+              sessionStorage.setItem('sw_cleared_v1', '1');
+              window.location.reload();
+            }
+          }).catch(function() {});
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            keys.forEach(function(k) { caches.delete(k); });
+          }).catch(function() {});
+        }
+      })();
+    </script>
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #0f172a; padding: 24px; text-align: center;">
+        <div style="width: 48px; height: 48px; border: 4px solid #e2e8f0; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px;"></div>
+        <h2 style="font-weight: 800; font-size: 1.25rem; margin: 0 0 8px 0; color: #1e1b4b;">Chargement de ProfPilot...</h2>
+        <p style="font-size: 0.875rem; color: #64748b; margin: 0 0 20px 0; max-width: 320px;">L'application se lance. Si l'écran reste bloqué, cliquez sur le bouton ci-dessous :</p>
+        <button onclick="if('caches' in window){caches.keys().then(k=>k.forEach(c=>caches.delete(c)))}; if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()))}; window.location.reload();" style="padding: 12px 20px; background: #4f46e5; color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 13px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);">
+          🔄 Actualiser & Réparer
+        </button>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
