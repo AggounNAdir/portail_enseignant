@@ -80,6 +80,8 @@ export function setCloudSyncEnabled(enabled: boolean): void {
 
 export interface CloudWorkspacePayload {
   syncKey: string;
+  ownerEmail?: string;
+  passcode?: string;
   teacher?: Teacher;
   classes: Classroom[];
   students: Student[];
@@ -104,6 +106,8 @@ export function pushWorkspaceToCloud(
     grades: Grade[];
     attendanceSessions: AttendanceSession[];
     attendanceRecords: AttendanceRecord[];
+    ownerEmail?: string;
+    passcode?: string;
   }
 ): void {
   if (!syncKey) return;
@@ -169,5 +173,64 @@ export async function fetchInitialCloudWorkspace(syncKey: string): Promise<Cloud
   } catch (err) {
     console.error("Erreur lors de la récupération initiale:", err);
     return null;
+  }
+}
+
+/**
+ * Vérifie rigoureusement l'existence et l'accès à une Clé Cloud pour un enseignant
+ */
+export async function verifyCloudCredentials(
+  syncKey: string,
+  email: string,
+  password?: string
+): Promise<{ success: boolean; error?: string; workspace?: CloudWorkspacePayload }> {
+  const cleanKey = syncKey.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  if (!cleanKey) {
+    return { success: false, error: 'Veuillez saisir votre Clé Cloud personnelle.' };
+  }
+
+  try {
+    const workspaceRef = doc(db, 'workspaces', cleanKey);
+    const snap = await getDoc(workspaceRef);
+
+    if (!snap.exists()) {
+      return {
+        success: false,
+        error: `La Clé Cloud "${cleanKey}" est introuvable. Aucun compte n'est enregistré avec cette clé sur le serveur.`,
+      };
+    }
+
+    const data = snap.data() as CloudWorkspacePayload;
+
+    // Si un mot de passe/passcode est configuré sur ce compte
+    if (data.passcode && password) {
+      if (data.passcode.trim() !== password.trim()) {
+        return {
+          success: false,
+          error: 'Mot de passe ou code secret incorrect pour ce compte.',
+        };
+      }
+    }
+
+    // Si un email propriétaire est configuré
+    if (data.ownerEmail && email) {
+      if (data.ownerEmail.toLowerCase().trim() !== email.toLowerCase().trim()) {
+        return {
+          success: false,
+          error: `Cette Clé Cloud appartient à "${data.ownerEmail}". L'adresse saisie ne correspond pas.`,
+        };
+      }
+    }
+
+    return {
+      success: true,
+      workspace: data,
+    };
+  } catch (err) {
+    console.error('Erreur vérification:', err);
+    return {
+      success: false,
+      error: 'Erreur de communication avec le Cloud Firestore. Vérifiez votre connexion Internet.',
+    };
   }
 }

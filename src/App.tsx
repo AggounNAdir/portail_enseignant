@@ -217,16 +217,16 @@ export default function App() {
     setIsSyncActive(true);
 
     const cloudData = await fetchInitialCloudWorkspace(clean);
-    if (cloudData && (cloudData.classes.length > 0 || cloudData.students.length > 0)) {
+    if (cloudData) {
       isRemoteSyncRef.current = true;
       if (cloudData.teacher) {
         setTeacher(cloudData.teacher);
         saveTeacher(cloudData.teacher);
       }
-      setClasses(cloudData.classes);
-      saveClasses(cloudData.classes);
-      setStudents(cloudData.students);
-      saveStudents(cloudData.students);
+      setClasses(cloudData.classes || []);
+      saveClasses(cloudData.classes || []);
+      setStudents(cloudData.students || []);
+      saveStudents(cloudData.students || []);
       setAssessments(cloudData.assessments || []);
       saveAssessments(cloudData.assessments || []);
       setGrades(cloudData.grades || []);
@@ -248,6 +248,7 @@ export default function App() {
         grades,
         attendanceSessions: sessions,
         attendanceRecords: records,
+        ownerEmail: teacher.email,
       });
     }
   };
@@ -258,7 +259,7 @@ export default function App() {
   };
 
   // Création d'un nouveau compte Enseignant
-  const handleCreateAccount = (newTeacher: Teacher, startBlank: boolean) => {
+  const handleCreateAccount = (newTeacher: Teacher, startBlank: boolean, passcode?: string) => {
     updateTeacher(newTeacher);
 
     // Clé Cloud personnalisée pour le professeur
@@ -268,7 +269,11 @@ export default function App() {
       ?.toUpperCase()
       .replace(/[^A-Z0-9]/g, '') || 'PROF';
     const generatedSyncKey = `${baseKey}-${new Date().getFullYear()}`;
-    handleActivateSync(generatedSyncKey);
+
+    const clean = setStoredSyncKey(generatedSyncKey);
+    setSyncKey(clean);
+    setCloudSyncEnabled(true);
+    setIsSyncActive(true);
 
     if (startBlank) {
       setClasses([]);
@@ -285,16 +290,45 @@ export default function App() {
       saveAttendanceRecords([]);
       setSelectedClassId('all');
       setCurrentTab('classes');
+
+      pushWorkspaceToCloud(clean, {
+        ownerEmail: newTeacher.email,
+        passcode: passcode,
+        teacher: newTeacher,
+        classes: [],
+        students: [],
+        assessments: [],
+        grades: [],
+        attendanceSessions: [],
+        attendanceRecords: [],
+      });
     } else {
-      handleLoadSampleData();
+      loadOptionalSampleData();
+      const loadedClasses = getStoredClasses();
+      const loadedStudents = getStoredStudents();
+      setClasses(loadedClasses);
+      setStudents(loadedStudents);
+      setSelectedClassId('all');
       setCurrentTab('dashboard');
+
+      pushWorkspaceToCloud(clean, {
+        ownerEmail: newTeacher.email,
+        passcode: passcode,
+        teacher: newTeacher,
+        classes: loadedClasses,
+        students: loadedStudents,
+        assessments: [],
+        grades: [],
+        attendanceSessions: [],
+        attendanceRecords: [],
+      });
     }
   };
 
-  const handleLoginSuccess = (email: string, customSyncKey?: string) => {
+  const handleLoginSuccess = async (email: string, customSyncKey?: string) => {
     setIsAuthenticated(true);
     if (customSyncKey) {
-      handleActivateSync(customSyncKey);
+      await handleActivateSync(customSyncKey);
     }
   };
 
