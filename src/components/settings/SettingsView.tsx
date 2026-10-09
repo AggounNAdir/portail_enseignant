@@ -20,7 +20,8 @@ import {
   Copy,
   Check,
   Share2,
-  RefreshCw
+  RefreshCw,
+  UserPlus
 } from 'lucide-react';
 import { Teacher } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -36,6 +37,7 @@ interface SettingsViewProps {
   isSyncActive?: boolean;
   syncKey?: string;
   onOpenCloudSync?: () => void;
+  onOpenAuthModal?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -48,6 +50,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isSyncActive = false,
   syncKey = '',
   onOpenCloudSync,
+  onOpenAuthModal,
 }) => {
   const { language, setLanguage, t, isRTL } = useLanguage();
   const [formData, setFormData] = useState({
@@ -310,14 +313,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Profil enseignant personnalisable */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-            <User className="w-5 h-5" />
+        <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                {language === 'ar' ? 'حساب الأستاذ الشخصي' : 'Mon Compte Enseignant'}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {language === 'ar' ? 'هذه المعلومات تظهر على كشوف النقاط وشهادات الملاحظات' : 'Ces informations apparaîtront sur vos bulletins scolaires et feuilles d’appel'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Mon Compte Enseignant</h2>
-            <p className="text-xs text-slate-500">Ces informations apparaîtront sur vos bulletins scolaires et feuilles d'appel</p>
-          </div>
+          {onOpenAuthModal && (
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{language === 'ar' ? '✨ إنشاء حساب جديد' : '✨ Nouveau Compte'}</span>
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmitProfile} className="space-y-4">

@@ -257,6 +257,47 @@ export default function App() {
     setIsSyncActive(false);
   };
 
+  // Création d'un nouveau compte Enseignant
+  const handleCreateAccount = (newTeacher: Teacher, startBlank: boolean) => {
+    updateTeacher(newTeacher);
+
+    // Clé Cloud personnalisée pour le professeur
+    const baseKey = newTeacher.name
+      .split(' ')
+      .pop()
+      ?.toUpperCase()
+      .replace(/[^A-Z0-9]/g, '') || 'PROF';
+    const generatedSyncKey = `${baseKey}-${new Date().getFullYear()}`;
+    handleActivateSync(generatedSyncKey);
+
+    if (startBlank) {
+      setClasses([]);
+      saveClasses([]);
+      setStudents([]);
+      saveStudents([]);
+      setAssessments([]);
+      saveAssessments([]);
+      setGrades([]);
+      saveGrades([]);
+      setSessions([]);
+      saveAttendanceSessions([]);
+      setRecords([]);
+      saveAttendanceRecords([]);
+      setSelectedClassId('all');
+      setCurrentTab('classes');
+    } else {
+      handleLoadSampleData();
+      setCurrentTab('dashboard');
+    }
+  };
+
+  const handleLoginSuccess = (email: string, customSyncKey?: string) => {
+    setIsAuthenticated(true);
+    if (customSyncKey) {
+      handleActivateSync(customSyncKey);
+    }
+  };
+
   // Synchronisation automatique vers localStorage à chaque mise à jour
   const updateTeacher = (newTeacher: Teacher) => {
     setTeacher(newTeacher);
@@ -669,19 +710,20 @@ export default function App() {
               isSyncActive={isSyncActive}
               syncKey={syncKey}
               onOpenCloudSync={() => setCloudSyncModalOpen(true)}
+              onOpenAuthModal={() => setAuthModalOpen(true)}
             />
           )}
         </main>
       </div>
 
-      {/* Modale d'authentification */}
+      {/* Modale d'authentification & Création de Compte Enseignant */}
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         teacher={teacher}
-        onLoginSuccess={(email) => {
-          setIsAuthenticated(true);
-        }}
+        onLoginSuccess={handleLoginSuccess}
+        onCreateAccount={handleCreateAccount}
+        onLoadDemo={handleLoadSampleData}
       />
 
       {/* Modale de Synchronisation Cloud Téléphone ⇄ PC */}

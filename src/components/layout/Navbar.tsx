@@ -203,11 +203,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Bouton Déconnexion */}
+            {/* Bouton Changer d'enseignant / Créer un compte */}
             <button
               onClick={onLogout}
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-              title="Se déconnecter"
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+              title={language === 'ar' ? 'تبديل الحساب / إنشاء حساب جديد' : 'Changer d’enseignant / Créer un compte'}
             >
               <LogOut className="w-4 h-4" />
             </button>
